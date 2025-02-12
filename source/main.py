@@ -1,41 +1,42 @@
-	# •	Inside pipeline.py (or main.py), you should:
-	# •	Import functions from data_loader.py, synchronizer.py, etc.
-	# •	Process input (e.g., file paths or configurations).
-	# •	Run the entire workflow.
-
-
-# main.py
-
-import sys
 from data_loader import load_eeg_data, open_json_file, select_block, read_time_domain_data
+from synchronizer import synchronize_eeg_dbs, find_eeg_peak, find_dbs_peak, plot_synchronized_signals
 
 def main():
     """
-    Main script to load EEG or DBS data.
+    Main script to load EEG and DBS data, detect synchronization peaks, and align both signals.
     """
-    if len(sys.argv) < 3:
-        file_type = input("Enter file type (EEG or DBS): ").strip().lower()
-        file_path = input("Enter the file path: ").strip()
-    else:
-        file_type = sys.argv[1].lower()
-        file_path = sys.argv[2]
+    eeg_file = input("Enter EEG file path: ").strip()
+    dbs_file = input("Enter DBS file path: ").strip()
 
     try:
-        if file_type == "eeg":
-            eeg_data = load_eeg_data(file_path)
-            print(f"EEG Data Loaded: {eeg_data}")
-        
-        elif file_type == "dbs":
-            json_data = open_json_file(file_path)
-            block_num = select_block(json_data)
-            df, fs = read_time_domain_data(json_data, block_num)
-            print(f"Loaded TimeDomainData from block {block_num} with sampling frequency {fs} Hz")
-            print(df.head())
+        # Load EEG
+        eeg_data = load_eeg_data(eeg_file)
+        eeg_fs = eeg_data.info["sfreq"]
 
-        else:
-            print("Invalid file type. Use 'EEG' or 'DBS'.")
+        # Find EEG peak
+        peak_fs, peak_s = find_eeg_peak(eeg_data, 120, 130, 4, duration_sec=120, save_dir="plots")
+        print(f"Highest detected EEG peak at {peak_fs} samples ({peak_s:.2f}s)")
+
+        # Load DBS
+        json_data = open_json_file(dbs_file)
+        block_num = select_block(json_data)
+        dbs_data, dbs_fs = read_time_domain_data(json_data, block_num)
+
+        # Find DBS peak
+        peak_dbs_idx, peak_dbs_time, cropped_dbs = find_dbs_peak(dbs_data, dbs_fs, save_dir="plots")
+        print(f"Highest detected DBS peak at {peak_dbs_idx} samples ({peak_dbs_time:.2f}s)")
+
+        # Synchronize EEG and cropped DBS
+        sync_option = input("Synchronize EEG and DBS? (yes/no): ").strip().lower()
+        if sync_option == "yes":
+            synchronized_eeg, synchronized_dbs = synchronize_eeg_dbs(eeg_data, cropped_dbs, eeg_fs, dbs_fs, peak_fs)
+            print("EEG and DBS synchronized and cropped.")
+
+            # Plot synchronized signals
+            plot_synchronized_signals(synchronized_eeg, synchronized_dbs, peak_s, save_dir="plots")
+
     except Exception as e:
-        print(f"Error loading data: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
