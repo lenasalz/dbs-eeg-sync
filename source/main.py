@@ -1,9 +1,9 @@
 from data_loader import load_eeg_data, open_json_file, select_block, read_time_domain_data
-from synchronizer import synchronize_eeg_dbs, find_eeg_peak, find_dbs_peak, plot_synchronized_signals
+from synchronizer import synchronize_eeg_dbs, find_eeg_peak, find_dbs_peak, plot_synchronized_signals, save_synchronized_data
 
 def main():
     """
-    Main script to load EEG and DBS data, detect synchronization peaks, and align both signals.
+    Main script to load EEG and DBS data, detect synchronization peaks, align both signals, and save the output.
     """
     eeg_file = input("Enter EEG file path: ").strip()
     dbs_file = input("Enter DBS file path: ").strip()
@@ -33,7 +33,12 @@ def main():
             print("EEG and DBS synchronized and cropped.")
 
             # Plot synchronized signals
-            plot_synchronized_signals(synchronized_eeg, synchronized_dbs, peak_s, save_dir="plots")
+            plot_synchronized_signals(synchronized_eeg, synchronized_dbs, peak_s, eeg_fs, dbs_fs, "plots")
+
+            # Ask user if they want to save the synchronized data
+            save_option = input("Save synchronized EEG & DBS data? (yes/no): ").strip().lower()
+            if save_option == "yes":
+                save_synchronized_data(synchronized_eeg, synchronized_dbs)
 
     except Exception as e:
         print(f"Error: {e}")

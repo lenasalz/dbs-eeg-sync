@@ -8,9 +8,10 @@ import os
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks, resample
 
+
 def synchronize_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs, peak_index_eeg_fs):
     """
-    Synchronizes EEG and DBS data by cropping both at the detected peak and resampling DBS to match EEG length.
+    Synchronizes EEG and DBS data by cropping both at the detected peak and resampling both to match in length.
 
     Args:
         eeg_data (mne.io.Raw): The EEG data object.
@@ -20,11 +21,11 @@ def synchronize_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs, peak_index_eeg_fs):
         peak_index_eeg_fs (int): Peak index in EEG data.
 
     Returns:
-        mne.io.Raw: Cropped EEG data starting from the peak.
-        pd.DataFrame: Cropped and resampled DBS data aligned with EEG.
+        mne.io.Raw: Cropped and resampled EEG data.
+        pd.DataFrame: Cropped and resampled DBS data.
     """
 
-    # Convert peak index in EEG samples to time in seconds
+    # Convert peak index in EEG samples to time
     peak_time_sec = peak_index_eeg_fs / eeg_fs
 
     # Convert peak time to DBS sample index
@@ -32,23 +33,26 @@ def synchronize_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs, peak_index_eeg_fs):
 
     # Crop EEG from detected peak onwards
     cropped_eeg = eeg_data.copy().crop(tmin=peak_time_sec)
-
     # Crop DBS from detected peak onwards
     cropped_dbs = dbs_data.iloc[peak_index_dbs_fs:].reset_index(drop=True)
 
-    # Get new EEG length after cropping
-    num_samples_eeg = len(cropped_eeg.times)
+    # Determine the target length (shortest signal after cropping)
+    min_length = min(len(cropped_eeg.times), len(cropped_dbs))
 
-    # Resample cropped DBS to match new EEG length
-    resampled_dbs_values = resample(cropped_dbs["TimeDomainData"].values, num_samples_eeg)
+    # Resample both EEG and DBS to exactly `min_length`
+    resampled_eeg = cropped_eeg.copy()
+    resampled_eeg._data = resample(cropped_eeg.get_data(), min_length, axis=1)
 
-    # Create a new index for the resampled DBS to match the length
-    cropped_dbs = cropped_dbs.iloc[:num_samples_eeg].copy()  # Trim extra rows if necessary
-    cropped_dbs["TimeDomainData"] = resampled_dbs_values
+    resampled_dbs_values = resample(cropped_dbs["TimeDomainData"].values, min_length)
 
-    print(f"EEG and DBS data cropped at {peak_time_sec} sec and resampled to match lengths.")
+    # Create a new DBS DataFrame with the correct length
+    resampled_dbs = pd.DataFrame({
+        "TimeDomainData": resampled_dbs_values
+    }, index=np.arange(min_length))  # Ensure length consistency
 
-    return cropped_eeg, cropped_dbs
+    print(f"EEG and DBS cropped at {peak_time_sec:.2f}s and resampled to {min_length} samples.")
+
+    return resampled_eeg, resampled_dbs
 
 
 def resample_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs):
@@ -97,7 +101,7 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
     """
 
     # Crop and filter EEG
-    raw_cropped = raw_eeg.copy().crop(tmax=duration_sec)  
+    raw_cropped = raw_eeg.copy().crop(tmax=duration_sec) 
     raw_filtered = raw_cropped.copy().filter(l_freq=freq_low, h_freq=freq_high)  
 
     fs = raw_filtered.info["sfreq"]
@@ -149,26 +153,30 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
     plt.legend()
 
     if save_dir:
-        plt.savefig(f"{save_dir}/syncPSD.png")
-        print(f"Plot saved to {save_dir}/syncPSD.png")
+        plt.savefig(f"{save_dir}/syncPeakEEG.png")
+        print(f"Plot saved to {save_dir}/syncPeakEEG.png")
 
     plt.show()  # Ensures the plot opens
 
     return peak_index_eeg_fs, peak_index_eeg_s
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
+
 def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
     """
-    Finds the highest synchronization peak index in DBS data.
+    Finds the highest peak in DBS data in the positive direction only.
 
     Args:
         dbs_data (pd.DataFrame): The DBS time series data.
         dbs_fs (float): Sampling frequency of the DBS.
-        save_dir (str, optional): Directory to save the plot. If None, the plot is not saved.
-        log_file (str, optional): Path to the log file where peak detection results will be saved.
+        save_dir (str, optional): Directory to save the plot.
+        log_file (str, optional): Log file path for saving detected peak info.
 
     Returns:
-        int: Peak index in DBS sampling frequency.
+        int: Peak index in DBS samples.
         float: Peak time in seconds.
         pd.DataFrame: Cropped DBS data from the detected peak onward.
     """
@@ -176,42 +184,41 @@ def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
     # Extract DBS signal
     dbs_signal = dbs_data["TimeDomainData"].values
 
-    # Time axis
+    # Compute time axis
     dbs_time_axis = np.arange(len(dbs_signal)) / dbs_fs
 
-    # Find peaks in DBS signal
-    peaks, peak_properties = find_peaks(np.abs(dbs_signal), height=np.mean(np.abs(dbs_signal)) * 1.5)
+    # Find peaks **only in the positive direction**
+    peaks, _ = find_peaks(dbs_signal, height=0)  # Only positive peaks
 
     if len(peaks) > 0:
-        # Select the peak with the highest amplitude
-        highest_peak_idx = np.argmax(peak_properties["peak_heights"])
-        peak_dbs_idx = peaks[highest_peak_idx]
+        # Select the **highest** positive peak
+        peak_dbs_idx = peaks[np.argmax(dbs_signal[peaks])]
     else:
-        # If no peak is found, use the maximum amplitude location as a fallback
-        peak_dbs_idx = np.argmax(np.abs(dbs_signal[:1000]))
+        # Fallback: Use max value in the first 1000 samples
+        peak_dbs_idx = np.argmax(dbs_signal[:1000])
 
     peak_dbs_time = peak_dbs_idx / dbs_fs
 
-    # Log the detected peak
+    # Log detected peak
     with open(log_file, "a") as log:
-        log.write(f"Detected highest DBS peak at {peak_dbs_idx} samples ({peak_dbs_time:.2f} sec)\n")
+        log.write(f"Detected DBS peak at {peak_dbs_idx} samples ({peak_dbs_time:.2f} sec)\n")
 
     print(f"DBS peak time logged in {log_file}")
 
-    # Plot the detected DBS peak
+    # Plot detected peak
     plt.figure(figsize=(10, 5))
     plt.plot(dbs_time_axis, dbs_signal, label="DBS Signal")
-    plt.axvline(dbs_time_axis[peak_dbs_idx], color='r', linestyle='--', label=f'Highest Peak @ {dbs_time_axis[peak_dbs_idx]:.2f} sec')
+    plt.axvline(dbs_time_axis[peak_dbs_idx], color='r', linestyle='--', label=f'Peak @ {peak_dbs_time:.2f} sec')
     plt.xlabel('Time (s)')
     plt.ylabel('DBS Amplitude')
     plt.title('DBS Peak Detection')
     plt.legend()
 
     if save_dir:
-        plt.savefig(f"{save_dir}/dbs_peak.png")
-        print(f"Plot saved to {save_dir}/dbs_peak.png")
+        plt.savefig(f"{save_dir}/syncPeakDBS.png")
+        print(f"Plot saved to {save_dir}/syncPeakDBS.png")
 
-    plt.show()  # Ensures the plot opens
+    plt.show()
 
     # Crop DBS signal at detected peak
     cropped_dbs = dbs_data.iloc[peak_dbs_idx:].reset_index(drop=True)
@@ -219,7 +226,7 @@ def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
     return peak_dbs_idx, peak_dbs_time, cropped_dbs
 
 
-def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, save_dir=None):
+def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, eeg_fs, dbs_fs, save_dir=None):
     """
     Plots the synchronized EEG and DBS signals overlayed.
 
@@ -227,25 +234,30 @@ def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, save_dir=None):
         eeg_data (mne.io.Raw): Synchronized EEG data.
         dbs_data (pd.DataFrame): Synchronized DBS data.
         peak_time_sec (float): Time at which peak was detected.
+        eeg_fs (float): Sampling frequency of the EEG.
+        dbs_fs (float): Sampling frequency of the DBS.
         save_dir (str, optional): Directory to save the plot.
     """
 
-    # Get EEG and DBS time vectors
-    eeg_times = eeg_data.times - peak_time_sec  # Align EEG to peak
-    dbs_times = np.linspace(0, len(dbs_data) / 250, len(dbs_data))  # Assuming DBS was at 250Hz
-
-    # Get EEG signal (first channel for visualization)
-    eeg_signal = eeg_data.get_data()[0]
-
-    # Get DBS signal
+    # Get EEG and DBS signals
+    eeg_signal = eeg_data.get_data()[0]  # First EEG channel
     dbs_signal = dbs_data["TimeDomainData"].values
+
+    # Ensure signals have the same length
+    min_length = min(len(eeg_signal), len(dbs_signal))
+    eeg_signal = eeg_signal[:min_length]
+    dbs_signal = dbs_signal[:min_length]
+
+    # Compute time vectors aligned to peak
+    eeg_times = np.arange(min_length) / eeg_fs - peak_time_sec  # EEG time aligned to peak
+    dbs_times = np.arange(min_length) / dbs_fs - peak_time_sec  # DBS time aligned to peak
 
     # Plot both signals
     plt.figure(figsize=(12, 5))
     plt.plot(eeg_times, eeg_signal, label="EEG Signal", color='blue', alpha=0.7)
     plt.plot(dbs_times, dbs_signal, label="DBS Signal", color='orange', alpha=0.7)
     plt.axvline(0, color='r', linestyle='--', label='Detected Peak')
-    
+
     plt.xlabel('Time (s)')
     plt.ylabel('Signal Amplitude')
     plt.title('Synchronized EEG & DBS Signals')
@@ -256,3 +268,30 @@ def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, save_dir=None):
         print(f"Overlay plot saved to {save_dir}/eeg_dbs_overlay.png")
 
     plt.show()
+
+
+def save_synchronized_data(eeg_data, dbs_data, output_dir="data"):
+    """
+    Saves the synchronized EEG and DBS data.
+
+    Args:
+        eeg_data (mne.io.Raw): Synchronized EEG data.
+        dbs_data (pd.DataFrame): Synchronized DBS data.
+        output_dir (str, optional): Directory to save the files. Defaults to "synchronized_data".
+
+    Returns:
+        None
+    """
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save EEG data in .fif format (MNE format)
+    eeg_output_path = os.path.join(output_dir, "synchronized_eeg.fif")
+    eeg_data.save(eeg_output_path, overwrite=True)
+    print(f"Saved synchronized EEG to {eeg_output_path}")
+
+    # Save DBS data as CSV
+    dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
+    dbs_data.to_csv(dbs_output_path, index=False)
+    print(f"Saved synchronized DBS to {dbs_output_path}")

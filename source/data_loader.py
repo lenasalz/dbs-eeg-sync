@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import sys
 
+
 def load_eeg_data(file_path: str):
     """
     Loads EEG data from various file formats using MNE.
@@ -46,6 +47,7 @@ def load_eeg_data(file_path: str):
     print(f"Successfully loaded {file_path}")
     return raw
 
+
 def open_json_file(filepath: str) -> dict:
     """
     Opens a JSON file and returns its contents as a dictionary.
@@ -59,6 +61,7 @@ def open_json_file(filepath: str) -> dict:
     with open(filepath) as jsonfile:
         data = json.load(jsonfile)
     return data
+
 
 def select_block(json_data: dict) -> int:
     """
@@ -97,6 +100,7 @@ def select_block(json_data: dict) -> int:
         except ValueError:
             print("Invalid input. Please enter a valid block number.")
 
+
 def read_time_domain_data(json_data: dict, block_num: int) -> tuple:
     """
     Extracts and returns TimeDomainData from the selected block.
@@ -113,6 +117,7 @@ def read_time_domain_data(json_data: dict, block_num: int) -> tuple:
     df = pd.DataFrame(json_data["BrainSenseTimeDomain"][block_num]["TimeDomainData"], columns=["TimeDomainData"])
     df["block"] = block_num
     return df, fs
+
 
 def read_lfp_data(json_data: dict, block_num: int) -> tuple:
     """
@@ -134,42 +139,10 @@ def read_lfp_data(json_data: dict, block_num: int) -> tuple:
     df["block"] = block_num
     return df, fs, lead
 
-def main():
-    """
-    Main function to load either EEG or DBS data based on user input or command-line arguments.
-    """
-    if len(sys.argv) < 3:
-        file_type = input("Enter the file type to load (EEG or DBS): ").strip().lower()
-        file_path = input("Enter the path to the file: ").strip()
-    else:
-        file_type = sys.argv[1].lower()
-        file_path = sys.argv[2]
 
-    try:
-        if file_type == "eeg":
-            eeg_data = load_eeg_data(file_path)
-            print(f"EEG Data Loaded: {eeg_data}")
-            
-        elif file_type == "dbs":
-            json_data = open_json_file(file_path)
-            block_num = select_block(json_data)
-            
-            data_type = input("Enter data type to read (TimeDomainData or LfpData): ").strip()
-            if data_type.lower() == "timedomaindata":
-                df, fs = read_time_domain_data(json_data, block_num)
-                print(f"Loaded TimeDomainData from block {block_num} with sampling frequency {fs} Hz")
-            elif data_type.lower() == "lfpdata":
-                df, fs, lead = read_lfp_data(json_data, block_num)
-                print(f"Loaded LfpData from block {block_num} on {lead} lead with sampling frequency {fs} Hz")
-            else:
-                print("Invalid data type selected. Exiting.")
-                return
-
-            print(df.head())
-        else:
-            print("Invalid file type. Please enter 'EEG' or 'DBS'.")
-    except Exception as e:
-        print(f"Error loading {file_type.upper()} data: {e}")
 
 if __name__ == "__main__":
-    main()
+    
+    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/2003_eeg_baseline_raw.set"
+    eeg_data = load_eeg_data(file_path)
+    print(eeg_data)
