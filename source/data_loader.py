@@ -63,80 +63,83 @@ def open_json_file(filepath: str) -> dict:
     return data
 
 
-def select_block(json_data: dict) -> int:
+def select_recording(json_data: dict) -> int:
     """
-    Prompts the user to select a block from the JSON data.
+    Prompts the user to select a recording from the JSON data.
 
     Args:
         json_data (dict): Parsed JSON data.
 
     Returns:
-        int: Selected block number.
+        int: Selected recording number.
     
     Raises:
-        ValueError: If no blocks are available for selection.
+        ValueError: If no recordings are available for selection.
     """
-    blocks = json_data.get("BrainSenseTimeDomain", [])
-    n_blocks = len(blocks)
+    recordings = json_data.get("BrainSenseTimeDomain", [])
+    n_recordings = len(recordings)
 
-    if n_blocks == 0:
-        raise ValueError("No blocks available for selection.")
+    if n_recordings == 0:
+        raise ValueError("No recordings available for selection.")
 
-    print(f"Available blocks: {list(range(n_blocks))}")
+    print(f"Available recordings: {list(range(n_recordings))}")
 
     while True:
         try:
-            block_num = input(f"Enter the block number to read (0-{n_blocks-1}): ").strip()
+            rec_num = input(f"Enter the recording number to read (0-{n_recordings-1}): ").strip()
             
-            if not block_num:
-                print("Input cannot be empty. Please enter a valid block number.")
+            if not rec_num:
+                print("Input cannot be empty. Please enter a valid recording number.")
                 continue
             
-            block_num = int(block_num)
-            if 0 <= block_num < n_blocks:
-                return block_num
+            rec_num = int(rec_num)
+            print(f"Reading recording {rec_num}...")
+
+            if 0 <= rec_num < n_recordings:
+                return rec_num
             else:
-                print("Invalid block number. Please try again.")
+                print("Invalid recording number. Please try again.")
         except ValueError:
-            print("Invalid input. Please enter a valid block number.")
+            print("Invalid input. Please enter a valid recording number.")
 
 
-def read_time_domain_data(json_data: dict, block_num: int) -> tuple:
+def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:
     """
-    Extracts and returns TimeDomainData from the selected block.
+    Extracts and returns TimeDomainData from the selected recording.
 
     Args:
         json_data (dict): Parsed JSON data.
-        block_num (int): Selected block number.
+        rec_num (int): Selected recording number.
 
     Returns:
         tuple: (DataFrame containing the time domain data, sampling frequency in Hz).
     """
-    fs = json_data["BrainSenseTimeDomain"][block_num].get("SampleRateInHz")
+    fs = json_data["BrainSenseTimeDomain"][rec_num].get("SampleRateInHz")
     
-    df = pd.DataFrame(json_data["BrainSenseTimeDomain"][block_num]["TimeDomainData"], columns=["TimeDomainData"])
-    df["block"] = block_num
-    return df, fs
+    df = pd.DataFrame(json_data["BrainSenseTimeDomain"][rec_num]["TimeDomainData"], columns=["TimeDomainData"])
+    df["recording"] = rec_num
+    df["SampleRateInHz"] = fs
+    return df
 
 
-def read_lfp_data(json_data: dict, block_num: int) -> tuple:
+def read_lfp_data(json_data: dict, rec_num: int) -> tuple:
     """
     Extracts and returns LfpData from the selected block.
 
     Args:
         json_data (dict): Parsed JSON data.
-        block_num (int): Selected block number.
+        rec_num (int): Selected recording number.
 
     Returns:
         tuple: (DataFrame containing the LFP data, sampling frequency in Hz, lead side).
     """
-    fs = json_data["BrainSenseLfp"][block_num].get("SampleRateInHz")
-    channel = json_data["BrainSenseLfp"][block_num]["Channel"]
+    fs = json_data["BrainSenseLfp"][rec_num].get("SampleRateInHz")
+    channel = json_data["BrainSenseLfp"][rec_num]["Channel"]
     lead = "Left" if "LEFT" in channel else "Right" if "RIGHT" in channel else "Unknown"
     
-    lfp_data = [sample[lead].get("LFP") for sample in json_data["BrainSenseLfp"][block_num]["LfpData"]]
+    lfp_data = [sample[lead].get("LFP") for sample in json_data["BrainSenseLfp"][rec_num]["LfpData"]]
     df = pd.DataFrame(lfp_data, columns=["LfpData"])
-    df["block"] = block_num
+    df["recording"] = rec_num
     return df, fs, lead
 
 
