@@ -61,7 +61,7 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
         # If no peak is found, use the maximum value in the first 1000 samples as a fallback
         peak_power_idx = np.argmax(power_band_sum[:1000])  
 
-    eeg_peak_index_fs = peak_power_idx * decim
+    eeg_peak_index_fs = int(peak_power_idx * decim)
     eeg_peak_index_s = eeg_peak_index_fs / fs
 
     # Log the detected peak
@@ -84,9 +84,6 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
         print(f"Plot saved to {save_dir}/syncPeakEEG.png")
 
     plt.show()  # Ensures the plot opens
-    # wait for few seconds
-    plt.pause(5)
-    plt.close()
 
     return eeg_peak_index_fs
 
@@ -146,9 +143,6 @@ def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
         print(f"Plot saved to {save_dir}/syncPeakDBS.png")
 
     plt.show()
-    # wait for few seconds
-    plt.pause(5)
-    plt.close()
 
     return dbs_peak_index_fs
 
