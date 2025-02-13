@@ -9,79 +9,6 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks, resample
 
 
-def synchronize_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs, peak_index_eeg_fs):
-    """
-    Synchronizes EEG and DBS data by cropping both at the detected peak and resampling both to match in length.
-
-    Args:
-        eeg_data (mne.io.Raw): The EEG data object.
-        dbs_data (pd.DataFrame): The DBS time series data.
-        eeg_fs (float): Sampling frequency of the EEG.
-        dbs_fs (float): Sampling frequency of the DBS.
-        peak_index_eeg_fs (int): Peak index in EEG data.
-
-    Returns:
-        mne.io.Raw: Cropped and resampled EEG data.
-        pd.DataFrame: Cropped and resampled DBS data.
-    """
-
-    # Convert peak index in EEG samples to time
-    peak_time_sec = peak_index_eeg_fs / eeg_fs
-
-    # Convert peak time to DBS sample index
-    peak_index_dbs_fs = int(peak_time_sec * dbs_fs)
-
-    # Crop EEG from detected peak onwards
-    cropped_eeg = eeg_data.copy().crop(tmin=peak_time_sec)
-    # Crop DBS from detected peak onwards
-    cropped_dbs = dbs_data.iloc[peak_index_dbs_fs:].reset_index(drop=True)
-
-    # Determine the target length (shortest signal after cropping)
-    min_length = min(len(cropped_eeg.times), len(cropped_dbs))
-
-    # Resample both EEG and DBS to exactly `min_length`
-    resampled_eeg = cropped_eeg.copy()
-    resampled_eeg._data = resample(cropped_eeg.get_data(), min_length, axis=1)
-
-    resampled_dbs_values = resample(cropped_dbs["TimeDomainData"].values, min_length)
-
-    # Create a new DBS DataFrame with the correct length
-    resampled_dbs = pd.DataFrame({
-        "TimeDomainData": resampled_dbs_values
-    }, index=np.arange(min_length))  # Ensure length consistency
-
-    print(f"EEG and DBS cropped at {peak_time_sec:.2f}s and resampled to {min_length} samples.")
-
-    return resampled_eeg, resampled_dbs
-
-
-def resample_eeg_dbs(eeg_data, dbs_data, eeg_fs, dbs_fs):
-    """
-    Resamples EEG and DBS signals to match each other.
-
-    Args:
-        eeg_data (mne.io.Raw | np.array): The EEG signal or data array.
-        dbs_data (pd.DataFrame | np.array): The DBS signal or data array.
-        eeg_fs (float): Sampling frequency of the EEG.
-        dbs_fs (float): Sampling frequency of the DBS.
-
-    Returns:
-        np.array, np.array: Resampled EEG and DBS signals.
-    """
-
-    eeg_samples = len(eeg_data.get_data()[0]) if isinstance(eeg_data, mne.io.Raw) else len(eeg_data)
-    dbs_samples = len(dbs_data)
-
-    if eeg_fs > dbs_fs:
-        resampled_eeg = resample(eeg_data.get_data()[0], dbs_samples) if isinstance(eeg_data, mne.io.Raw) else resample(eeg_data, dbs_samples)
-        return resampled_eeg, dbs_data
-    elif dbs_fs > eeg_fs:
-        resampled_dbs = resample(dbs_data, eeg_samples)
-        return eeg_data, resampled_dbs
-    else:
-        return eeg_data, dbs_data
-    
-
 def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_dir=None, log_file="sync_log.txt"):
     """
     Finds the highest synchronization peak index in EEG data within a specified frequency band.
@@ -134,12 +61,12 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
         # If no peak is found, use the maximum value in the first 1000 samples as a fallback
         peak_power_idx = np.argmax(power_band_sum[:1000])  
 
-    peak_index_eeg_fs = peak_power_idx * decim
-    peak_index_eeg_s = peak_index_eeg_fs / fs
+    eeg_peak_index_fs = peak_power_idx * decim
+    eeg_peak_index_s = eeg_peak_index_fs / fs
 
     # Log the detected peak
     with open(log_file, "a") as log:
-        log.write(f"Detected highest EEG peak at {peak_index_eeg_fs} samples ({peak_index_eeg_s:.2f} sec)\n")
+        log.write(f"Detected highest EEG peak at {eeg_peak_index_fs} samples ({eeg_peak_index_s:.2f} sec)\n")
 
     print(f"Peak time logged in {log_file}")
 
@@ -157,22 +84,21 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
         print(f"Plot saved to {save_dir}/syncPeakEEG.png")
 
     plt.show()  # Ensures the plot opens
+    # wait for few seconds
+    plt.pause(5)
+    plt.close()
 
-    return peak_index_eeg_fs, peak_index_eeg_s
+    return eeg_peak_index_fs
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
-
-def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
+def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
     """
     Finds the highest peak in DBS data in the positive direction only.
 
     Args:
         dbs_data (pd.DataFrame): The DBS time series data.
         dbs_fs (float): Sampling frequency of the DBS.
-        save_dir (str, optional): Directory to save the plot.
+        save_dir (str, optional): Directory to save the plot. If None, the plot is not saved.
         log_file (str, optional): Log file path for saving detected peak info.
 
     Returns:
@@ -183,6 +109,7 @@ def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
 
     # Extract DBS signal
     dbs_signal = dbs_data["TimeDomainData"].values
+    dbs_fs = dbs_data["SampleRateInHz"][0]
 
     # Compute time axis
     dbs_time_axis = np.arange(len(dbs_signal)) / dbs_fs
@@ -192,23 +119,23 @@ def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
 
     if len(peaks) > 0:
         # Select the **highest** positive peak
-        peak_dbs_idx = peaks[np.argmax(dbs_signal[peaks])]
+        dbs_peak_index_fs = peaks[np.argmax(dbs_signal[peaks])]
     else:
         # Fallback: Use max value in the first 1000 samples
-        peak_dbs_idx = np.argmax(dbs_signal[:1000])
+        dbs_peak_index_fs = np.argmax(dbs_signal[:1000])
 
-    peak_dbs_time = peak_dbs_idx / dbs_fs
+    dbs_peak_index_s = dbs_peak_index_fs / dbs_fs
 
     # Log detected peak
     with open(log_file, "a") as log:
-        log.write(f"Detected DBS peak at {peak_dbs_idx} samples ({peak_dbs_time:.2f} sec)\n")
+        log.write(f"Detected DBS peak at {dbs_peak_index_fs} samples ({dbs_peak_index_s:.2f} sec)\n")
 
     print(f"DBS peak time logged in {log_file}")
 
     # Plot detected peak
     plt.figure(figsize=(10, 5))
     plt.plot(dbs_time_axis, dbs_signal, label="DBS Signal")
-    plt.axvline(dbs_time_axis[peak_dbs_idx], color='r', linestyle='--', label=f'Peak @ {peak_dbs_time:.2f} sec')
+    plt.axvline(dbs_time_axis[dbs_peak_index_fs], color='r', linestyle='--', label=f'Peak @ {dbs_peak_index_s:.2f} sec')
     plt.xlabel('Time (s)')
     plt.ylabel('DBS Amplitude')
     plt.title('DBS Peak Detection')
@@ -219,43 +146,84 @@ def find_dbs_peak(dbs_data, dbs_fs, save_dir=None, log_file="sync_log.txt"):
         print(f"Plot saved to {save_dir}/syncPeakDBS.png")
 
     plt.show()
+    # wait for few seconds
+    plt.pause(5)
+    plt.close()
 
-    # Crop DBS signal at detected peak
-    cropped_dbs = dbs_data.iloc[peak_dbs_idx:].reset_index(drop=True)
-
-    return peak_dbs_idx, peak_dbs_time, cropped_dbs
+    return dbs_peak_index_fs
 
 
-def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, eeg_fs, dbs_fs, save_dir=None):
-    """
-    Plots the synchronized EEG and DBS signals overlayed.
+def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
+    """ 
+    Crops the data at the detected peaks and resamples to match the shortest signal.
 
     Args:
-        eeg_data (mne.io.Raw): Synchronized EEG data.
-        dbs_data (pd.DataFrame): Synchronized DBS data.
-        peak_time_sec (float): Time at which peak was detected.
-        eeg_fs (float): Sampling frequency of the EEG.
-        dbs_fs (float): Sampling frequency of the DBS.
-        save_dir (str, optional): Directory to save the plot.
+        eeg_data (mne.io.Raw): The EEG data object.
+        dbs_data (pd.DataFrame): The DBS time series data.
+        peak_dbs_idx (int): Peak index in DBS samples.
+        peak_index_eeg_fs (int): Peak index in EEG samples.
+
+    Returns:
+        mne.io.Raw: Cropped and resampled EEG data.
+        pd.DataFrame: Cropped and resampled DBS data.    
+    
     """
 
-    # Get EEG and DBS signals
-    eeg_signal = eeg_data.get_data()[0]  # First EEG channel
-    dbs_signal = dbs_data["TimeDomainData"].values
+    cropped_eeg = eeg_data.copy().crop(tmin=peak_index_eeg_fs / eeg_data.info["sfreq"])
+    cropped_dbs = dbs_data.iloc[peak_dbs_idx:].reset_index(drop=True)
 
-    # Ensure signals have the same length
-    min_length = min(len(eeg_signal), len(dbs_signal))
-    eeg_signal = eeg_signal[:min_length]
-    dbs_signal = dbs_signal[:min_length]
+    eeg_fs = eeg_data.info["sfreq"]
+    dbs_fs = dbs_data["SampleRateInHz"][0]
 
-    # Compute time vectors aligned to peak
-    eeg_times = np.arange(min_length) / eeg_fs - peak_time_sec  # EEG time aligned to peak
-    dbs_times = np.arange(min_length) / dbs_fs - peak_time_sec  # DBS time aligned to peak
+    # check length
+    print(f"Cropped EEG length: {len(cropped_eeg.times)/eeg_fs/60} minutes")
+    print(f"Cropped DBS length: {len(cropped_dbs)/dbs_fs/60} minutes")
 
-    # Plot both signals
+    return cropped_eeg, cropped_dbs
+
+
+def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
+    """
+    Synchronizes EEG and DBS data by resampling to the same length efficiently.
+
+    Args:
+        cropped_eeg (mne.io.Raw): EEG data (MNE object).
+        cropped_dbs (pd.DataFrame): DBS data (Pandas DataFrame).
+        save_dir (str, optional): Directory to save the plot.
+
+    Returns:
+        synchronized_eeg (mne.io.Raw): Resampled EEG data with updated sampling frequency.
+        synchronized_dbs (pd.DataFrame): Resampled DBS data.
+    """
+
+    # Get EEG sampling rate
+    eeg_fs = cropped_eeg.info["sfreq"]
+
+    # Get DBS signal & sampling rate
+    dbs_signal = cropped_dbs["TimeDomainData"].values
+    dbs_fs = cropped_dbs["SampleRateInHz"].iloc[0]
+
+    # Choose the target sampling frequency (lower one for efficiency)
+    target_fs = min(eeg_fs, dbs_fs)
+
+    # Resample EEG using MNE's built-in method
+    cropped_eeg.resample(target_fs)
+
+    # Resample DBS signal if needed
+    if dbs_fs != target_fs:
+        resampled_dbs_signal = resample(dbs_signal, int(len(dbs_signal) * target_fs / dbs_fs))
+    else:
+        resampled_dbs_signal = dbs_signal
+
+    # Generate time vectors efficiently
+    n_times = cropped_eeg.get_data().shape[1]
+    eeg_times = np.linspace(0, n_times / target_fs, n_times)
+    dbs_times = np.linspace(0, len(resampled_dbs_signal) / target_fs, len(resampled_dbs_signal))
+
+    # Plot the signals
     plt.figure(figsize=(12, 5))
-    plt.plot(eeg_times, eeg_signal, label="EEG Signal", color='blue', alpha=0.7)
-    plt.plot(dbs_times, dbs_signal, label="DBS Signal", color='orange', alpha=0.7)
+    plt.plot(eeg_times, cropped_eeg.get_data()[0], label="EEG Signal (Channel 0)", color='blue', alpha=0.7)
+    plt.plot(dbs_times, resampled_dbs_signal, label="DBS Signal", color='orange', alpha=0.7)
     plt.axvline(0, color='r', linestyle='--', label='Detected Peak')
 
     plt.xlabel('Time (s)')
@@ -269,15 +237,22 @@ def plot_synchronized_signals(eeg_data, dbs_data, peak_time_sec, eeg_fs, dbs_fs,
 
     plt.show()
 
+    # Update DBS data
+    synchronized_dbs = cropped_dbs.copy()
+    synchronized_dbs["TimeDomainData"] = resampled_dbs_signal
+    synchronized_dbs["SampleRateInHz"] = target_fs
 
-def save_synchronized_data(eeg_data, dbs_data, output_dir="data"):
+    return cropped_eeg, synchronized_dbs
+
+
+def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data"):
     """
     Saves the synchronized EEG and DBS data.
 
     Args:
         eeg_data (mne.io.Raw): Synchronized EEG data.
         dbs_data (pd.DataFrame): Synchronized DBS data.
-        output_dir (str, optional): Directory to save the files. Defaults to "synchronized_data".
+        output_dir (str, optional): Directory to save the files. Defaults to "data".
 
     Returns:
         None
@@ -286,12 +261,15 @@ def save_synchronized_data(eeg_data, dbs_data, output_dir="data"):
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
+    if not isinstance(synchonized_eeg, mne.io.BaseRaw):
+        raise ValueError("eeg_data is not an instance of mne.io.Raw")
+
     # Save EEG data in .fif format (MNE format)
     eeg_output_path = os.path.join(output_dir, "synchronized_eeg.fif")
-    eeg_data.save(eeg_output_path, overwrite=True)
+    synchonized_eeg.save(eeg_output_path, overwrite=True)
     print(f"Saved synchronized EEG to {eeg_output_path}")
 
     # Save DBS data as CSV
     dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
-    dbs_data.to_csv(dbs_output_path, index=False)
+    synchronized_dbs.to_csv(dbs_output_path, index=False)
     print(f"Saved synchronized DBS to {dbs_output_path}")
