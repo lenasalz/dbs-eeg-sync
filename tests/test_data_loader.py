@@ -7,7 +7,7 @@ import mne
 from source.data_loader import (
     load_eeg_data, 
     open_json_file, 
-    select_block, 
+    select_recording, 
     read_time_domain_data, 
     read_lfp_data
 )
@@ -40,25 +40,24 @@ class TestDataLoader(unittest.TestCase):
     
     def test_select_block_no_blocks(self):
         with self.assertRaises(ValueError):
-            select_block({"BrainSenseTimeDomain": []})
+            select_recording({"BrainSenseTimeDomain": []})
     
     @patch("builtins.input", side_effect=["0"])
     def test_select_block_valid(self, mock_input):
         json_data = {"BrainSenseTimeDomain": [{"SampleRateInHz": 250}]} 
-        result = select_block(json_data)
+        result = select_recording(json_data)
         self.assertEqual(result, 0)
     
     @patch("builtins.input", side_effect=["abc", "3", "-1", "0"])  # Invalid -> Invalid -> Invalid -> Valid (0)
     def test_select_block_invalid_then_valid(self, mock_input):
         json_data = {"BrainSenseTimeDomain": [{}, {}]}  # Two blocks (0 and 1)
-        result = select_block(json_data)
+        result = select_recording(json_data)
         # Ensure the chosen block is within valid range
         self.assertTrue(0 <= result < len(json_data["BrainSenseTimeDomain"]))
     
     def test_read_time_domain_data(self):
         json_data = {"BrainSenseTimeDomain": [{"SampleRateInHz": 250, "TimeDomainData": [1, 2, 3]}]}
-        df, fs = read_time_domain_data(json_data, 0)
-        self.assertEqual(fs, 250)
+        df = read_time_domain_data(json_data, 0)
         self.assertIsInstance(df, pd.DataFrame)
         self.assertEqual(len(df), 3)
     
