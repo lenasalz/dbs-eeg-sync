@@ -17,26 +17,24 @@
 
 ## Installation
 
-1. Clone the Repository:
+1. Clone the repository:
+Open a terminal and run:
    ```bash
    git clone https://github.com/lenasalz/dbs-eeg-sync.git
    cd dbs-eeg-sync
    ```
 
-2. Create a Virtual Environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate   # Linux/Mac
-   .venv\Scripts\activate.bat  # Windows
+2. Set up the environment using uv:
+This project uses **uv** to manage the Python environment and dependencies. Please follow the [official uv docs](https://docs.astral.sh/uv/) for installation. 
+    ```bash
+    uv sync 
+    source .venv/bin/activate 
    ```
+   - uv sync will:
+    - create a .venv folder (if it doesn't exist)
+    - install dependencies from pyproject.toml and/or uv.lock
+*If a uv.lock file exists, uv will use it to ensure reproducible installs. Otherwise, it installs from pyproject.toml.*
 
-3. Install Dependencies with UV:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-**Dependencies include:**
-- `numpy`, `pandas`, `mne`, `matplotlib`, `scipy`
 
 ---
 
@@ -45,30 +43,43 @@
 ```
 .
 ├── README.md
-├── config/                # Configuration files
-├── data/                  # Raw and synchronized EEG & DBS data
-│   ├── eeg_raw.set
-│   ├── report.json
+├── config
+├── data
+│   ├── Report_Json_Session_Report_20241025T120701.json
+│   ├── eeg_example.set
 │   ├── synchronized_dbs.csv
 │   └── synchronized_eeg.fif
-├── docs/                  # Documentation
-├── examples/              # Example files and scripts
-├── notebooks/             # Jupyter Notebooks for analysis
+├── docs
+├── examples
+├── notebooks
 │   └── synchronizer.ipynb
-├── plots/                 # Generated plots for peak detection & synchronization
+├── plots
 │   ├── eeg_dbs_overlay.png
 │   ├── syncPeakDBS.png
 │   └── syncPeakEEG.png
-├── source/                # Source code for the EEG-DBS synchronization
+├── pyproject.toml
+├── source
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── data_loader.cpython-312.pyc
+│   │   ├── sync_peaks_finder.cpython-312.pyc
+│   │   └── synchronizer.cpython-312.pyc
 │   ├── data_loader.py
 │   ├── main.py
+│   ├── sync_peaks_finder.py
 │   ├── synchronizer.py
-│   └── utils/
-├── tests/                 # Unit tests
-│   └── test_data_loader.py
-├── pyproject.toml         # Project configuration
-├── uv.lock                # Lockfile for UV dependency management
-└── sync_log.txt           # Log file with detected peaks
+│   └── utils
+│       └── __init__.py
+├── sync_log.txt
+├── tests
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-312.pyc
+│   │   └── test_data_loader.cpython-312.pyc
+│   ├── test_data_loader.py
+│   ├── test_sync_peak_finder.py
+│   └── test_synch
 ```
 
 ---
@@ -101,6 +112,7 @@ Sample Run:
 ```bash
 Enter EEG file path: data/eeg_raw.set
 Enter DBS file path: data/Report_Json_Session_Report.json
+Enter Frequency range of artifact and duration of signals
 Peak detected at 23116 samples (11.56s)
 DBS peak detected at 15023 samples (5.6s)
 Synchronize EEG and DBS? (yes/no): yes
@@ -163,9 +175,4 @@ This project is licensed under the MIT License.
 ## References
 - MNE-Python Documentation: [https://mne.tools/stable/](https://mne.tools/stable/)
 - Scipy Signal Processing: [https://docs.scipy.org/doc/scipy/reference/signal.html](https://docs.scipy.org/doc/scipy/reference/signal.html)
-- EEG Analysis Resources: OpenNeuro, EEG-BIDS Guidelines
-
 ---
-
-Happy Syncing!
-
