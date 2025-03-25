@@ -1,9 +1,6 @@
 import unittest
 from unittest.mock import patch, mock_open
-import os
-import json
 import pandas as pd
-import mne
 from source.data_loader import (
     load_eeg_data, 
     open_json_file, 
