@@ -1,9 +1,7 @@
 import os
-import numpy as np
 import mne  # Assuming EEG data uses MNE library
 import json
 import pandas as pd
-import sys
 
 
 def load_eeg_data(file_path: str):
@@ -46,6 +44,19 @@ def load_eeg_data(file_path: str):
     
     print(f"Successfully loaded {file_path}")
     return raw
+
+
+def dbs_artifact_settings():
+    """ 
+    Asks user to input the frequency range and duration for the DBS artifact detection.
+    If no input is given, the default values are used.
+    Default values: dbs_freq_min = 120, dbs_freq_max = 130, duration_sec = 120
+    """
+    dbs_freq_min = input("Enter the minimum frequency for DBS artifact detection (usually 120): ").strip()
+    dbs_freq_max = input("Enter the maximum frequency for DBS artifact detection (usually 130): ").strip()
+    dbs_duration_sec = input("Enter the duration of the DBS signal for artifact detection (in seconds): ").strip()
+
+    return dbs_freq_min, dbs_freq_max, dbs_duration_sec
 
 
 def open_json_file(filepath: str) -> dict:
