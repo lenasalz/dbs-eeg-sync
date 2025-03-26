@@ -2,7 +2,8 @@ import os
 import mne  # Assuming EEG data uses MNE library
 import json
 import pandas as pd
-
+import numpy as np
+import pyxdf
 
 def load_eeg_data(file_path: str):
     """
@@ -39,6 +40,17 @@ def load_eeg_data(file_path: str):
         raw = mne.io.read_raw_cnt(file_path, preload=True)
     elif ext == ".mff":
         raw = mne.io.read_raw_egi(file_path, preload=True)
+    elif ext == ".xdf":
+        streams, _ = pyxdf.load_xdf(file_path)
+        eeg_stream = next((s for s in streams if s['info']['type'][0] == 'EEG'), None)
+        if eeg_stream is None:
+            raise ValueError("No EEG stream found in the .xdf file")
+        data = np.array(eeg_stream['time_series']).T
+        ch_names = [ch['label'][0] for ch in eeg_stream['info']['desc'][0]['channels'][0]['channel']]
+        sfreq = float(eeg_stream['info']['nominal_srate'][0])
+        ch_types = ['eeg'] * len(ch_names)
+        info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
+        raw = mne.io.RawArray(data, info)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
     
