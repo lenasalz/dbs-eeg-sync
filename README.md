@@ -1,6 +1,12 @@
 # EEG-DBS Synchronization Pipeline
 
-**EEG-DBS Synchronization Pipeline** is a Python-based tool designed to synchronize EEG (Electroencephalography) and DBS (Deep Brain Stimulation) BrainSense :tm: data. It enables efficient data loading, peak detection, alignment, and visualization of EEG and DBS signals for neuroscientific analysis.
+**EEG-DBS Synchronization Pipeline** is a Python-based tool designed to synchronize EEG (Electroencephalography) and DBS (Deep Brain Stimulation) BrainSense:tm: data. It enables efficient data loading, peak detection, alignment, and visualization of EEG and DBS signals for neuroscientific analysis.
+
+## Synchronization Procedure
+1. Start the EEG recording
+2. Start the DBS Streaming 
+3. Reduce the DBS amplitude by at least 0.2mA to indcue an artifact in the DBS **and** EEG data.
+4. Increase the amplitude again in the BrainSense:tm: App and wait until it is back to the initial stimulation.  
 
 ---
 
