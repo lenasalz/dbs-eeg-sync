@@ -9,7 +9,7 @@ def main():
 
     # Ask user for file paths
 
-    save_option = input("Testing? (yes/no): ").strip().lower()
+    save_option = input("---\nTesting? (yes/no): ").strip().lower()
     if save_option == "yes":
         eeg_file = "data/eeg_example.set"
         dbs_file = "data/Report_Json_Session_Report_20241025T120701.json"
@@ -29,21 +29,22 @@ def main():
         # Load DBS
         json_data = open_json_file(dbs_file)
         block_num = select_recording(json_data)
+
         dbs_data = read_time_domain_data(json_data, block_num)
 
         # Find DBS peak
         dbs_peak_fs = find_dbs_peak(dbs_data, save_dir="plots")
 
         # Synchronize EEG and cropped DBS
-        print("Synchronizing EEG and DBS...")
+        print("---\nSynchronizing EEG and DBS...")
         cropped_eeg, cropped_dbs = crop_data(eeg_data, dbs_data, dbs_peak_fs, eeg_peak_fs)
-        print("EEG and DBS cropped at the synchronization peak.")
+        print("---\nEEG and DBS cropped at the synchronization peak.")
 
         # Plot synchronized signals
         synchonized_eeg, synchronized_dbs = synchronize_data(cropped_eeg, cropped_dbs, "plots")
 
         # Ask user if they want to save the synchronized data
-        save_option = input("Save cropped and synchronized EEG & DBS data? (yes/no): ").strip().lower()
+        save_option = input("---\nSave cropped and synchronized EEG & DBS data? (yes/no): ").strip().lower()
         if save_option == "yes":
             save_synchronized_data(synchonized_eeg, synchronized_dbs)
 

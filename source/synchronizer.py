@@ -32,8 +32,8 @@ def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
     dbs_fs = dbs_data["SampleRateInHz"][0]
 
     # check length
-    print(f"Cropped EEG length: {len(cropped_eeg.times)/eeg_fs/60} minutes")
-    print(f"Cropped DBS length: {len(cropped_dbs)/dbs_fs/60} minutes")
+    print(f"---\nCropped EEG length: {len(cropped_eeg.times)/eeg_fs/60} minutes")
+    print(f"---\nCropped DBS length: {len(cropped_dbs)/dbs_fs/60} minutes")
 
     return cropped_eeg, cropped_dbs
 
@@ -102,7 +102,9 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
 
     if save_dir:
         plt.savefig(f"{save_dir}/eeg_dbs_overlay.png")
-        print(f"Overlay plot saved to {save_dir}/eeg_dbs_overlay.png")
+        print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay.png")
+    
+    print("---\nPlease close the plot to continue.")
 
     plt.show()
 
@@ -136,9 +138,9 @@ def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data")
     # Save EEG data in .fif format (MNE format)
     eeg_output_path = os.path.join(output_dir, "synchronized_eeg.fif")
     synchonized_eeg.save(eeg_output_path, overwrite=True)
-    print(f"Saved synchronized EEG to {eeg_output_path}")
+    print(f"---\nSaved synchronized EEG to {eeg_output_path}")
 
     # Save DBS data as CSV
     dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
     synchronized_dbs.to_csv(dbs_output_path, index=False)
-    print(f"Saved synchronized DBS to {dbs_output_path}")
+    print(f"---\nSaved synchronized DBS to {dbs_output_path}")

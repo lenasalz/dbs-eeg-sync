@@ -42,7 +42,7 @@ def load_eeg_data(file_path: str):
     else:
         raise ValueError(f"Unsupported file format: {ext}")
     
-    print(f"Successfully loaded {file_path}")
+    print(f"---\nSuccessfully loaded {file_path}")
     return raw
 
 
@@ -52,9 +52,15 @@ def dbs_artifact_settings():
     If no input is given, the default values are used.
     Default values: dbs_freq_min = 120, dbs_freq_max = 130, duration_sec = 120
     """
-    dbs_freq_min = input("Enter the minimum frequency for DBS artifact detection (usually 120): ").strip()
-    dbs_freq_max = input("Enter the maximum frequency for DBS artifact detection (usually 130): ").strip()
-    dbs_duration_sec = input("Enter the duration of the DBS signal for artifact detection (in seconds): ").strip()
+    # ask user if he wants to adapt the filter frequency range, otherwise use default values are taken
+    if input("---\nThe default filter frequencies for frequency DBS artifact detection are 120 - 130 Hz, in the first 120 seconds. \nDo you want to adapt these? (yes/no): ").strip().lower() == "yes":
+        dbs_freq_min = int(input("---\nEnter the minimum frequency for DBS artifact detection (usually 120): ").strip())
+        dbs_freq_max = int(input("---\nEnter the maximum frequency for DBS artifact detection (usually 130): ").strip())
+        dbs_duration_sec = int(input("---\nEnter the duration of the DBS signal for artifact detection (in seconds): ").strip())
+    else:
+        dbs_freq_min = 120
+        dbs_freq_max = 130
+        dbs_duration_sec = 120
 
     return dbs_freq_min, dbs_freq_max, dbs_duration_sec
 
@@ -93,25 +99,25 @@ def select_recording(json_data: dict) -> int:
     if n_recordings == 0:
         raise ValueError("No recordings available for selection.")
 
-    print(f"Available recordings: {list(range(n_recordings))}")
+    print(f"---\nAvailable recordings: {list(range(n_recordings))}")
 
     while True:
         try:
             rec_num = input(f"Enter the recording number to read (0-{n_recordings-1}): ").strip()
             
             if not rec_num:
-                print("Input cannot be empty. Please enter a valid recording number.")
+                print("---\nInput cannot be empty. Please enter a valid recording number.")
                 continue
             
             rec_num = int(rec_num)
-            print(f"Reading recording {rec_num}...")
+            print(f"---\nReading recording {rec_num}...")
 
             if 0 <= rec_num < n_recordings:
                 return rec_num
             else:
-                print("Invalid recording number. Please try again.")
+                print("---\nInvalid recording number. Please try again.")
         except ValueError:
-            print("Invalid input. Please enter a valid recording number.")
+            print("---\nInvalid input. Please enter a valid recording number.")
 
 
 def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:

@@ -65,7 +65,7 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
     with open(log_file, "a") as log:
         log.write(f"Detected highest EEG peak at {eeg_peak_index_fs} samples ({eeg_peak_index_s:.2f} sec)\n")
 
-    print(f"Peak time logged in {log_file}")
+    print(f"---\nPeak time logged in {log_file}")
 
     # Plot the detected peak
     plt.figure(figsize=(10, 5))
@@ -75,10 +75,12 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
     plt.ylabel('Power')
     plt.title('EEG: Power Over Time in 125 Hz Band')
     plt.legend()
-
+    
     if save_dir:
         plt.savefig(f"{save_dir}/syncPeakEEG.png")
-        print(f"Plot saved to {save_dir}/syncPeakEEG.png")
+        print(f"---\nPlot saved to {save_dir}/syncPeakEEG.png")
+    
+    print("---\nPlease close the plot to continue.\n---")
 
     plt.show()  # Ensures the plot opens
 
@@ -100,7 +102,6 @@ def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
         float: Peak time in seconds.
         pd.DataFrame: Cropped DBS data from the detected peak onward.
     """
-
     # Extract DBS signal
     dbs_signal = dbs_data["TimeDomainData"].values
     dbs_fs = dbs_data["SampleRateInHz"][0]
@@ -124,7 +125,7 @@ def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
     with open(log_file, "a") as log:
         log.write(f"Detected DBS peak at {dbs_peak_index_fs} samples ({dbs_peak_index_s:.2f} sec)\n")
 
-    print(f"DBS peak time logged in {log_file}")
+    print(f"---\nDBS peak time logged in {log_file}")
 
     # Plot detected peak
     plt.figure(figsize=(10, 5))
@@ -135,9 +136,12 @@ def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
     plt.title('DBS Peak Detection')
     plt.legend()
 
+
     if save_dir:
         plt.savefig(f"{save_dir}/syncPeakDBS.png")
-        print(f"Plot saved to {save_dir}/syncPeakDBS.png")
+        print(f"---\nPlot saved to {save_dir}/syncPeakDBS.png")
+    
+    print("---\nPlease close the plot to continue.\n---")
 
     plt.show()
 
