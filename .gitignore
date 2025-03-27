@@ -175,3 +175,5 @@ cython_debug/
 
 # Data (EEG, DBS, and other large datasets)
 data/
+plots/
+sync_log.txt
