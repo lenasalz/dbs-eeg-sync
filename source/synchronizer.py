@@ -7,6 +7,8 @@ import mne
 import os
 import matplotlib.pyplot as plt
 from scipy.signal import resample
+from datetime import datetime
+
 
 
 def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
@@ -101,8 +103,9 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     plt.legend()
 
     if save_dir:
-        plt.savefig(f"{save_dir}/eeg_dbs_overlay.png")
-        print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay.png")
+        dat = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.savefig(f"{save_dir}/eeg_dbs_overlay_{dat}.png")
+        print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay_{dat}.png")
     
     print("---\nPlease close the plot to continue.")
 
@@ -144,3 +147,4 @@ def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data")
     dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
     synchronized_dbs.to_csv(dbs_output_path, index=False)
     print(f"---\nSaved synchronized DBS to {dbs_output_path}")
+

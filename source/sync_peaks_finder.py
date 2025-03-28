@@ -3,7 +3,10 @@
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
+import os
 from scipy.signal import find_peaks, resample
+from datetime import datetime
+import csv
 
 def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_dir=None, log_file="sync_log.txt"):
     """
@@ -77,14 +80,15 @@ def find_eeg_peak(raw_eeg, freq_low, freq_high, decim, duration_sec=120, save_di
     plt.legend()
     
     if save_dir:
-        plt.savefig(f"{save_dir}/syncPeakEEG.png")
-        print(f"---\nPlot saved to {save_dir}/syncPeakEEG.png")
+        dat = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.savefig(f"{save_dir}/syncPeakEEG_{dat}.png")
+        print(f"---\nPlot saved to {save_dir}/syncPeakEEG_{dat}.png")
     
     print("---\nPlease close the plot to continue.\n---")
 
     plt.show()  # Ensures the plot opens
 
-    return eeg_peak_index_fs
+    return eeg_peak_index_fs, eeg_peak_index_s
 
 
 def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
@@ -138,11 +142,37 @@ def find_dbs_peak(dbs_data, save_dir=None, log_file="sync_log.txt"):
 
 
     if save_dir:
-        plt.savefig(f"{save_dir}/syncPeakDBS.png")
-        print(f"---\nPlot saved to {save_dir}/syncPeakDBS.png")
+        dat = datetime.now().strftime("%Y%m%d_%H%M%S")
+        plt.savefig(f"{save_dir}/syncPeakDBS_{dat}.png")
+        print(f"---\nPlot saved to {save_dir}/syncPeakDBS_{dat}.png")
     
     print("---\nPlease close the plot to continue.\n---")
 
     plt.show()
 
-    return dbs_peak_index_fs
+    return dbs_peak_index_fs, dbs_peak_index_s
+
+
+def save_sync_peak_info(eeg_file, dbs_file, eeg_peak_idx, eeg_peak_time, dbs_peak_idx, dbs_peak_time, output_file="sync_info.csv"):
+    """
+    Save EEG & DBS peak indices and times with file names to a CSV table.
+    """
+    header = ["EEG File", "DBS File", "EEG Peak Index", "EEG Peak Time (s)", "DBS Peak Index", "DBS Peak Time (s)"]
+    row = [eeg_file, dbs_file, eeg_peak_idx, eeg_peak_time, dbs_peak_idx, dbs_peak_time]
+
+    output_dir = "data"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = f"{output_dir}/{output_file}"
+    
+    try:
+        write_header = not os.path.isfile(output_path)
+
+        with open(output_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(header)
+            writer.writerow(row)
+        print(f"---\nPeak info saved to {output_path}")
+
+    except Exception as e:
+        print(f"Error saving peak info: {e}")
