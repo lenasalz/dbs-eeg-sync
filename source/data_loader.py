@@ -148,6 +148,7 @@ def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:
     df = pd.DataFrame(json_data["BrainSenseTimeDomain"][rec_num]["TimeDomainData"], columns=["TimeDomainData"])
     df["recording"] = rec_num
     df["SampleRateInHz"] = fs
+    print(f"---\nSuccessfully read DBS recording {rec_num} with sampling frequency {fs} Hz")
     return df
 
 
@@ -169,6 +170,7 @@ def read_lfp_data(json_data: dict, rec_num: int) -> tuple:
     lfp_data = [sample[lead].get("LFP") for sample in json_data["BrainSenseLfp"][rec_num]["LfpData"]]
     df = pd.DataFrame(lfp_data, columns=["LfpData"])
     df["recording"] = rec_num
+    print(f"---\nSuccessfully read DBS recording {rec_num} with sampling frequency {fs} Hz")
     return df, fs, lead
 
 
