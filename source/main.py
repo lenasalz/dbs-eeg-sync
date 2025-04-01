@@ -31,7 +31,9 @@ def main():
         eeg_peak_idx, eeg_peak_time = find_eeg_peak(eeg_data, dbs_freq_min, dbs_freq_max, dbs_duration_sec, save_dir="plots")
 
         # Find DBS peak
-        dbs_peak_idx, dbs_peak_time = find_dbs_peak(dbs_data, save_dir="plots")
+        dbs_signal =  dbs_data["TimeDomainData"].values
+        dbs_fs = dbs_data["SampleRateInHz"][0]
+        dbs_peak_idx, dbs_peak_time = find_dbs_peak(dbs_signal, dbs_fs, save_dir="plots")
 
         # Save peak info
         save_sync_peak_info(eeg_file, dbs_file, eeg_peak_idx, eeg_peak_time, dbs_peak_idx, dbs_peak_time)
