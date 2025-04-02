@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import numpy as np
 import pyxdf
+from typing import Tuple
 
 def load_eeg_data(file_path: str):
     """
@@ -175,8 +176,73 @@ def read_lfp_data(json_data: dict, rec_num: int) -> tuple:
 
 
 
+def compute_eeg_power(
+        raw_eeg: mne.io.Raw, 
+        freq_low: int, 
+        freq_high: int, 
+        duration_sec: int=120, 
+        channel: str="Cz"
+        ) -> Tuple[np.ndarray, np.ndarray]:
+    """ 
+    Computes the power of EEG data in a specified frequency range and duration.
+
+    Args:
+        raw_eeg (mne.io.Raw): The raw EEG data.
+        freq_low (int): Lower frequency bound for power computation.
+        freq_high (int): Upper frequency bound for power computation.
+        duration_sec (int, optional): Duration in seconds for which to compute the power. Defauls to 120 seconds.
+        channel (str, optional): The EEG channel to analyze. Defaults to "Cz".
+
+    Returns:
+        Tuple[numpy.ndarray, numpy.ndarray]: A tuple containing:
+            - eeg_power_band_sum: The computed power in the specified frequency range.
+            - power_time_axis: Time axis corresponding to the computed power.
+    """
+
+    # Crop and filter EEG
+    _raw = raw_eeg.copy()
+    raw_cropped = _raw.crop(tmax=duration_sec)
+    raw_filtered = raw_cropped.filter(l_freq=freq_low, h_freq=freq_high)
+
+    fs = raw_filtered.info["sfreq"]
+    # check nyqist and adjust frequency range
+    nyquist_freq = fs / 2
+    if freq_low > nyquist_freq or freq_high > nyquist_freq:
+        raise ValueError(f"Frequency range exceeds Nyquist frequency: {nyquist_freq} Hz")
+    if freq_low < 0 or freq_high < 0:
+        raise ValueError("Frequency range must be positive")
+    if freq_low >= freq_high:
+        raise ValueError("Frequency low must be less than frequency high")
+    # Define frequencies and wavelet parameters
+    freqs = np.arange(freq_low, freq_high, 1)
+    n_cycles = freqs / 1.5  
+    time_bandwidth = 4.0  
+    picks = channel    # only one channel is used for the analysis
+
+    power = mne.time_frequency.tfr_multitaper(
+        raw_filtered,
+        # picks="eeg",
+        picks=picks,
+        freqs=freqs,
+        n_cycles=n_cycles,
+        time_bandwidth=time_bandwidth,
+        decim=1,
+        average=True,
+        return_itc=False
+    )
+
+    eeg_power_band_sum = power.data.mean(axis=0).sum(axis=0)  
+
+    # for the peak detection, ignore the first and last second, as there are artefacts from power computation
+    cut_samples = int((fs) * 1)
+    eeg_power_band_sum = eeg_power_band_sum[cut_samples:-cut_samples]
+
+    power_time_axis = np.arange(len(eeg_power_band_sum)) / fs
+
+    return eeg_power_band_sum, power_time_axis
+
+
 if __name__ == "__main__":
-    
-    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/2003_eeg_baseline_raw.set"
+    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
     eeg_data = load_eeg_data(file_path)
     print(eeg_data)
