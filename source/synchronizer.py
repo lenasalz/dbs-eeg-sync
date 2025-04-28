@@ -119,7 +119,7 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     return resampled_eeg, synchronized_dbs
 
 
-def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data"):
+def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="outputs/outputData"):
     """
     Saves the synchronized EEG and DBS data.
 
@@ -139,12 +139,12 @@ def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data")
         raise ValueError("eeg_data is not an instance of mne.io.Raw")
 
     # Save EEG data in .fif format (MNE format)
-    eeg_output_path = os.path.join(output_dir, "synchronized_eeg.fif")
+    eeg_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_eeg.fif")
     synchonized_eeg.save(eeg_output_path, overwrite=True)
     print(f"---\nSaved synchronized EEG to {eeg_output_path}")
 
     # Save DBS data as CSV
-    dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
+    dbs_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_dbs.csv")
     synchronized_dbs.to_csv(dbs_output_path, index=False)
     print(f"---\nSaved synchronized DBS to {dbs_output_path}")
 

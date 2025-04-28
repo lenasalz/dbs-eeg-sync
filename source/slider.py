@@ -19,6 +19,7 @@ class PowerSliderApp(QWidget):
         # Load data
         self.power_data = power_data
         self.selected_index = 0
+        self.selection_made = False  # Track if user clicked "Save and Quit"
 
         # UI
         layout = QVBoxLayout()
@@ -39,15 +40,15 @@ class PowerSliderApp(QWidget):
         layout.addWidget(self.canvas)
 
         # Save & Quit Button
-        self.save_button = QPushButton("Save and Quit")
-        self.save_button.clicked.connect(self.save_and_quit)
+        self.save_button = QPushButton("Save and Close")
+        self.save_button.clicked.connect(self.save_and_close)
         layout.addWidget(self.save_button)
 
         self.setLayout(layout)
         self.plot_data()
 
     def save_to_csv(self):
-        output_path = "selected_indices.csv"
+        output_path = "outputs/selected_artifact_indeces.csv"
         timestamp = datetime.datetime.now().isoformat()
         header = ["timestamp", "sub_id", "block", "sync_index"]
 
@@ -64,13 +65,11 @@ class PowerSliderApp(QWidget):
             writer = csv.writer(f)
             writer.writerow([timestamp, self.sub_id, self.block, self.selected_index])
 
-    def save_and_quit(self):
+    def save_and_close(self):
         self.save_to_csv()
+        self.selection_made = True
         self.close()
 
-    def closeEvent(self, event):
-        self.save_to_csv()
-        event.accept()
 
     def update_index(self, value):
         self.selected_index = value
@@ -88,19 +87,38 @@ class PowerSliderApp(QWidget):
         self.canvas.draw()
 
 
-def run_manual_sync_slider(csv_path, sub_id, block):
+def run_manual_sync_slider(power_data, sub_id, block):
     """
     Launch the EEG power selection slider GUI.
     This can be called from other scripts after user declines auto sync.
     """
-    app = QApplication(sys.argv)
-    window = PowerSliderApp(csv_path, sub_id, block)
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    else:
+        print("QApplication instance already exists.")
+    window = PowerSliderApp(power_data, sub_id, block)
     window.show()
-    sys.exit(app.exec_())
+    app.exec_()
+    # After window closed
+    if window.selection_made:
+        print(f"Selected index returned: {window.selected_index}")
+        return window.selected_index
+    else:
+        print("No selection made, user closed the window without saving.")
+        return None
+    
+
 
 if __name__ == "__main__":
-    run_manual_sync_slider(
-        "/Users/lenasalzmann/dev/dbs-eeg-sync/data/P4-2004_pre8walk_eeg_power.csv",
+    # Example CSV loading
+    data_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/P4-2004_pre8walk_eeg_power.csv"
+    power_data = pd.read_csv(data_path, index_col=0)  # or modify based on your file format
+
+    selected_index = run_manual_sync_slider(
+        power_data,
         sub_id="P4-2004",
         block="pre8walk"
     )
+
+    print("Returned to main script with selected index:", selected_index)

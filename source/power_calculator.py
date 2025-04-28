@@ -88,7 +88,9 @@ def compute_samplewise_eeg_power(
     plot: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Computes sample-wise band power of EEG data in a specified frequency range, with optional smoothing.
+    Computes sample-wise band power of EEG data in a specified frequency range, with optional smoothing. 
+    The sample-wise power is computed by averaging the power of the EEG data in the specified frequency range.
+    The resulting power trace is of the same length as the EEG data.
 
     Args:
         raw_eeg (mne.io.Raw): The raw EEG data.
@@ -134,8 +136,8 @@ def compute_samplewise_eeg_power(
 
     return power_trace, time_axis
 
-
 from data_loader import load_eeg_data
+
 if __name__ == '__main__':
     file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
     eeg_data = load_eeg_data(file_path)
