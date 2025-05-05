@@ -11,20 +11,20 @@ from datetime import datetime
 import plotly.graph_objects as go
 from typing import Tuple, Optional
 
-from power_calculator import compute_samplewise_eeg_power
+from source.power_calculater import compute_samplewise_eeg_power
 
 
-def find_eeg_peak(eeg_power, fs, power_time_axis, save_dir=None, log_file="sync_log.txt"):
-
+def find_eeg_peak(
+        eeg_power,
+        fs, 
+        save_dir=None):
     """
     Finds the highest synchronization peak index in EEG data within a specified frequency band.
 
     Args:
         eeg_power (np.ndarray): The computed EEG power values.
         fs (int): Sampling frequency of the EEG signal.
-        power_time_axis (np.ndarray): Time axis for the EEG power data.
         save_dir (str, optional): Directory to save the plot. If None, the plot is not saved.
-        log_file (str, optional): Log file path for saving detected peak info.
     Returns:
         int: Peak index in EEG samples.
         float: Peak time in seconds.
@@ -44,11 +44,7 @@ def find_eeg_peak(eeg_power, fs, power_time_axis, save_dir=None, log_file="sync_
     eeg_peak_index_fs = int(peak_power_idx)
     eeg_peak_index_s = eeg_peak_index_fs / fs
 
-    # Log the detected peak
-    with open(log_file, "a") as log:
-        log.write(f"Detected highest EEG peak at {eeg_peak_index_fs} samples ({eeg_peak_index_s:.2f} sec)\n")
-
-    print(f"---\nPeak time logged in {log_file}")
+    power_time_axis = np.arange(len(eeg_power)) / fs
 
     # Plot the detected peak
     plt.figure(figsize=(10, 5))
