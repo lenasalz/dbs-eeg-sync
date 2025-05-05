@@ -174,6 +174,9 @@ cython_debug/
 # macOS metadata files
 .DS_Store
 
+# Windows metadata files
+Thumbs.db
+
 # Data (EEG, DBS, and other large datasets)
 data/
 outputs/
