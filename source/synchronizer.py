@@ -10,7 +10,6 @@ from scipy.signal import resample
 from datetime import datetime
 
 
-
 def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
     """ 
     Crops the data at the detected peaks and resamples to match the shortest signal.
