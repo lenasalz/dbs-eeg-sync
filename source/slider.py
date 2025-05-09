@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSlider, QLabel, QPushButton
 from PyQt5.QtCore import Qt
 import datetime
@@ -35,7 +36,9 @@ class PowerSliderApp(QWidget):
         layout.addWidget(self.slider)
 
         # Plot
-        self.fig, self.ax = plt.subplots()
+        # self.fig, self.ax = plt.subplots()
+        self.fig = Figure()
+        self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvas(self.fig)
         layout.addWidget(self.canvas)
 
@@ -66,10 +69,10 @@ class PowerSliderApp(QWidget):
             writer.writerow([timestamp, self.sub_id, self.block, self.selected_index])
 
     def save_and_close(self):
-        self.save_to_csv()
+        # self.save_to_csv()
         self.selection_made = True
         self.close()
-
+        QApplication.quit()
 
     def update_index(self, value):
         self.selected_index = value
@@ -80,7 +83,7 @@ class PowerSliderApp(QWidget):
         self.ax.clear()
         self.ax.plot(self.power_data.index, self.power_data.iloc[:, 0], label="Power")
         self.ax.axvline(x=self.selected_index, color='red', linestyle='--', label='Selected Index')
-        self.ax.set_title("EEG Power Data")
+        self.ax.set_title(f"EEG Power Data")
         self.ax.set_xlabel("Sample Index")
         self.ax.set_ylabel("Power")
         self.ax.legend()
@@ -112,7 +115,7 @@ def run_manual_sync_slider(power_data, sub_id, block):
 
 if __name__ == "__main__":
     # Example CSV loading
-    data_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/P4-2004_pre8walk_eeg_power.csv"
+    data_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/outputs/outputData/eeg_power.csv"
     power_data = pd.read_csv(data_path, index_col=0)  # or modify based on your file format
 
     selected_index = run_manual_sync_slider(

@@ -54,9 +54,9 @@ def load_eeg_data(file_path: str):
         raw = mne.io.RawArray(data, info)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
-    
+    sfreq = raw.info['sfreq']
     print(f"---\nSuccessfully loaded {file_path}")
-    return raw
+    return raw, sfreq
 
 
 def dbs_artifact_settings():

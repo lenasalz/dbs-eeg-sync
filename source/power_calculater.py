@@ -141,7 +141,9 @@ from source.data_loader import load_eeg_data
 if __name__ == '__main__':
     file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
     eeg_data = load_eeg_data(file_path)
-    power, time = compute_samplewise_eeg_power(eeg_data, 8, 12, channel="POz", plot=True)
+    power, time = compute_samplewise_eeg_power(eeg_data, 8, 12, channel="T8", plot=True)
+    # save power to csv in outputs folder
+    np.savetxt("outputs/outputData/eeg_power.csv", power, delimiter=",")
     print(power.shape, time.shape)
 
 

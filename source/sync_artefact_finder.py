@@ -98,7 +98,7 @@ def find_dbs_peak(dbs_signal, dbs_fs, save_dir=None):
     # Plot detected peak
     plt.figure(figsize=(10, 5))
     plt.plot(dbs_time_axis, dbs_signal, label="DBS Signal")
-    plt.axvline(dbs_time_axis[dbs_peak_index_fs], color='r', linestyle='--', label=f'Peak @ {dbs_peak_index_s:.2f} sec')
+    plt.axvline(dbs_time_axis[dbs_peak_index_fs], color='r', linestyle='--', label=f'Peak @ {dbs_peak_index_s:.2f} sec | {dbs_peak_index_fs} samples')
     plt.xlabel('Time (s)')
     plt.ylabel('DBS Amplitude')
     plt.title('DBS Peak Detection')
@@ -108,7 +108,7 @@ def find_dbs_peak(dbs_signal, dbs_fs, save_dir=None):
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
         plt.savefig(f"{save_dir}/syncPeakDBS_{dat}.png")
         print(f"---\nPlot saved to {save_dir}/syncPeakDBS_{dat}.png")
-        print("---\nClose plot to continue")
+        print("---\nClose DBS sync plot to continue")
     
     plt.show()
 
@@ -378,6 +378,8 @@ def detect_sync_from_eeg(
     if eeg_fs is None:
         eeg_fs = int(eeg_raw.info['sfreq'])
 
+    # ToDo: add duration_sec as length of the eeg data
+
     # crop the eeg data to duration_sec, if given
     if duration_sec:
         start_time = 0
@@ -446,19 +448,25 @@ def detect_sync_from_eeg(
         return None, None, None, None, None
 
     if plot:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(y=best_smoothed, mode="lines", name="Smoothed Power"))
-        fig.add_vline(
-            x=best_result["index"], 
-            line=dict(color="red" if best_result["type"] == "drop" else "green", dash="dash")
-        )
-        fig.update_layout(title=f"EEG Change Detection ({best_result['type'].capitalize()}) - {best_channel}",
-                          xaxis_title="Samples", yaxis_title="Power")
-        fig.show()
+        print("---\nPlease close the EEG sync plot to continue.\n---")
+        plt.figure(figsize=(10, 4))
+        plt.plot(best_smoothed, label="Smoothed Power")
+        plt.axvline(best_result["index"], 
+                    color="red" if best_result["type"] == "drop" else "green", 
+                    linestyle="--", label=f"Sync Point, {best_result['time']:.2f}s, {best_result['index']} samples")
+        plt.title(f"EEG Sync Point Detection ({best_result['type'].capitalize()}) - Channel: {best_channel}")
+        plt.xlabel("Samples")
+        plt.ylabel("Power")
+        plt.legend()
+        plt.tight_layout()
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            fig.write_image(os.path.join(save_dir, f"change_onset_{best_channel}.png"))
+            plt.savefig(os.path.join(save_dir, f"change_onset_{best_channel}.png"))
+            # save power to csv in outputs folder with an index column
+            np.savetxt("outputs/outputData/eeg_power.csv", np.column_stack((np.arange(len(best_smoothed)), best_smoothed)), delimiter=",")
+        plt.show()
+        
 
     return best_channel, best_result["index"], best_result["time"], best_result, best_smoothed
 
@@ -482,7 +490,7 @@ def confirm_sync_selection(
         bool: True if confirmed by user, False if manual selection is preferred.
     """
 
-    print("\n🔍 Sync Artifact Candidate Detected")
+    print("\n🔍 Sync Artifact Detected")
     print("----------------------------------")
     print(f"  Channel   : {channel}")
     print(f"  Time      : {sync_time:.2f} s")
@@ -498,41 +506,4 @@ def confirm_sync_selection(
             return False
         else:
             print("Please enter 'yes' or 'no'.")
-
             
-
-def save_sync_peak_info(eeg_file, dbs_file, eeg_peak_idx, eeg_peak_time, dbs_peak_idx, dbs_peak_time, output_file="sync_info.csv"):
-    """
-    Save EEG & DBS peak indices and times with file names to a CSV table.
-    
-    Args:
-        eeg_file (str): Name of the EEG file.
-        dbs_file (str): Name of the DBS file.
-        eeg_peak_idx (int): Index of the EEG peak.
-        eeg_peak_time (float): Time of the EEG peak in seconds.
-        dbs_peak_idx (int): Index of the DBS peak.
-        dbs_peak_time (float): Time of the DBS peak in seconds.
-        output_file (str): Name of the output CSV file.
-
-    Returns:
-        None
-    """
-    header = ["EEG File", "DBS File", "EEG Peak Index", "EEG Peak Time (s)", "DBS Peak Index", "DBS Peak Time (s)"]
-    row = [eeg_file, dbs_file, eeg_peak_idx, eeg_peak_time, dbs_peak_idx, dbs_peak_time]
-
-    output_dir = "outputs"
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = f"{output_dir}/{output_file}"
-    
-    try:
-        write_header = not os.path.isfile(output_path)
-
-        with open(output_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            if write_header:
-                writer.writerow(header)
-            writer.writerow(row)
-        print(f"---\nPeak info saved to {output_path}")
-
-    except Exception as e:
-        print(f"Error saving peak info: {e}")
