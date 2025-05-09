@@ -1,9 +1,10 @@
 import os
-import mne  # Assuming EEG data uses MNE library
+import mne  
 import json
 import pandas as pd
 import numpy as np
 import pyxdf
+
 
 def load_eeg_data(file_path: str):
     """
@@ -53,9 +54,9 @@ def load_eeg_data(file_path: str):
         raw = mne.io.RawArray(data, info)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
-    
+    sfreq = raw.info['sfreq']
     print(f"---\nSuccessfully loaded {file_path}")
-    return raw
+    return raw, sfreq
 
 
 def dbs_artifact_settings():
@@ -111,25 +112,25 @@ def select_recording(json_data: dict) -> int:
     if n_recordings == 0:
         raise ValueError("No recordings available for selection.")
 
-    print(f"---\nAvailable recordings: {list(range(n_recordings))}")
+    print(f"---\nAvailable DBS recordings: {list(range(n_recordings))}")
 
     while True:
         try:
-            rec_num = input(f"Enter the recording number to read (0-{n_recordings-1}): ").strip()
+            rec_num = input(f"Enter the DBS recording number to read (0-{n_recordings-1}): ").strip()
             
             if not rec_num:
                 print("---\nInput cannot be empty. Please enter a valid recording number.")
                 continue
             
             rec_num = int(rec_num)
-            print(f"---\nReading recording {rec_num}...")
+            print(f"---\nReading DBS recording {rec_num}...")
 
             if 0 <= rec_num < n_recordings:
                 return rec_num
             else:
-                print("---\nInvalid recording number. Please try again.")
+                print("---\nInvalid DBS recording number. Please try again.")
         except ValueError:
-            print("---\nInvalid input. Please enter a valid recording number.")
+            print(f"---\nInvalid input. Please enter a valid DBS recording number (0 - {n_recordings-1}).")
 
 
 def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:
@@ -176,7 +177,7 @@ def read_lfp_data(json_data: dict, rec_num: int) -> tuple:
 
 
 if __name__ == "__main__":
-    
-    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/2003_eeg_baseline_raw.set"
+    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
     eeg_data = load_eeg_data(file_path)
     print(eeg_data)
+

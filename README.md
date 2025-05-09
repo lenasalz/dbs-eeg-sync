@@ -2,6 +2,12 @@
 
 **EEG-DBS Synchronization Pipeline** is a Python-based tool designed to synchronize EEG (Electroencephalography) and DBS (Deep Brain Stimulation) BrainSense:tm: data. It enables efficient data loading, peak detection, alignment, and visualization of EEG and DBS signals for neuroscientific analysis.
 
+## TEMPORARY NOTES ## 
+- The drop in the EEG signal produced by the reduction in DBS stimulation amplitude is not the same in all EEG channels. Occipial and medial channels appear to have a clearer change (drop) in signal. 
+- Sometimes, there is a peak shortly after the drop. Is it noise, or some neurophysiological artefact related to the reduction in amplitude?
+- Potentially try to find the best drop in all channels first, and use this for syncrhonization?-
+- left and right electrodes seem sometimes opposed with drop / spike
+
 ## Synchronization Procedure
 1. Start the EEG recording
 2. Start the DBS Streaming 

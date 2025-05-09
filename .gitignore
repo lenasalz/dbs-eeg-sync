@@ -135,6 +135,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+dbs-eeg-env/
 
 # Spyder project settings
 .spyderproject
@@ -173,7 +174,9 @@ cython_debug/
 # macOS metadata files
 .DS_Store
 
+# Windows metadata files
+Thumbs.db
+
 # Data (EEG, DBS, and other large datasets)
 data/
-plots/
-sync_log.txt
+outputs/ 

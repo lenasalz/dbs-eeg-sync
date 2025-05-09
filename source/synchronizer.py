@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import mne
 import os
+import csv
 import matplotlib.pyplot as plt
 from scipy.signal import resample
 from datetime import datetime
-
 
 
 def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
@@ -74,24 +74,34 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     # Choose the target sampling frequency (lower one for efficiency)
     target_fs = min(eeg_fs, dbs_fs)
 
-    # Resample EEG using MNE's built-in method if needed
-    if eeg_fs != target_fs:
-        resampled_eeg = cropped_eeg.resample(sfreq=target_fs)
+    # Ask user if they want to resample the data to the target sampling frequency
+    resample_data = input("---\nResample data to the lower sampling frequency? (yes/no): ").strip().lower()
+    if resample_data == "yes":
+        # Resample EEG using MNE's built-in method if needed
+        if eeg_fs != target_fs:
+            resampled_eeg = cropped_eeg.resample(sfreq=target_fs)
+        else:
+            resampled_eeg = cropped_eeg
+        # Resample DBS signal if needed
+        if dbs_fs != target_fs:
+            resampled_dbs_signal = resample(dbs_signal, int(len(dbs_signal) * target_fs / dbs_fs))
+        else:
+            resampled_dbs_signal = dbs_signal
     else:
         resampled_eeg = cropped_eeg
-   
-    # Resample DBS signal if needed
-    if dbs_fs != target_fs:
-        resampled_dbs_signal = resample(dbs_signal, int(len(dbs_signal) * target_fs / dbs_fs))
-    else:
         resampled_dbs_signal = dbs_signal
 
     # Generate time vectors efficiently
     n_times = resampled_eeg.get_data().shape[1]
-    eeg_times = np.linspace(0, n_times / target_fs, n_times)
-    dbs_times = np.linspace(0, len(resampled_dbs_signal) / target_fs, len(resampled_dbs_signal))
 
-    # Plot the signals
+    if resample_data == "yes":
+        eeg_times = np.linspace(0, n_times / target_fs, n_times)
+        dbs_times = np.linspace(0, len(resampled_dbs_signal) / target_fs, len(resampled_dbs_signal))
+    else:
+        eeg_times = np.arange(n_times) / eeg_fs
+        dbs_times = np.arange(len(resampled_dbs_signal)) / dbs_fs
+
+    # Plot the signals as overlay
     plt.figure(figsize=(12, 5))
     plt.plot(eeg_times, resampled_eeg.get_data()[0], label="EEG Signal (Channel 0)", color='blue', alpha=0.7)
     plt.plot(dbs_times, resampled_dbs_signal, label="DBS Signal", color='orange', alpha=0.7)
@@ -107,7 +117,7 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
         plt.savefig(f"{save_dir}/eeg_dbs_overlay_{dat}.png")
         print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay_{dat}.png")
     
-    print("---\nPlease close the plot to continue.")
+    print("---\nPlease close the overlay plot to continue.")
 
     plt.show()
 
@@ -119,7 +129,7 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     return resampled_eeg, synchronized_dbs
 
 
-def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data"):
+def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="outputs/outputData"):
     """
     Saves the synchronized EEG and DBS data.
 
@@ -139,12 +149,87 @@ def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="data")
         raise ValueError("eeg_data is not an instance of mne.io.Raw")
 
     # Save EEG data in .fif format (MNE format)
-    eeg_output_path = os.path.join(output_dir, "synchronized_eeg.fif")
+    eeg_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_eeg.fif")
     synchonized_eeg.save(eeg_output_path, overwrite=True)
     print(f"---\nSaved synchronized EEG to {eeg_output_path}")
 
     # Save DBS data as CSV
-    dbs_output_path = os.path.join(output_dir, "synchronized_dbs.csv")
+    dbs_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_dbs.csv")
     synchronized_dbs.to_csv(dbs_output_path, index=False)
     print(f"---\nSaved synchronized DBS to {dbs_output_path}")
 
+
+def save_sync_info(
+    sub_id,
+    block,
+    eeg_file=None,
+    dbs_file=None,
+    eeg_peak_idx=None,
+    eeg_peak_time=None,
+    dbs_peak_idx=None,
+    dbs_peak_time=None,
+    output_file="sync_info.csv"
+):
+    """
+    Save synchronization info to a CSV.
+
+    Args:
+        sub_id (str): Subject ID.
+        block (str): Block name.
+        eeg_file (str): EEG filename.
+        dbs_file (str): DBS filename.
+        eeg_peak_idx (int): EEG peak index (or manual selection).
+        eeg_peak_time (float): EEG peak time in seconds.
+        dbs_peak_idx (int): DBS peak index.
+        dbs_peak_time (float): DBS peak time in seconds.
+        output_file (str): Output CSV file name.
+    """
+    output_dir = "outputs"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, output_file)
+    timestamp = datetime.now().isoformat()
+
+    header = [
+        "timestamp", "sub_id", "block",
+        "EEG File", "DBS File",
+        "EEG Peak Index", "EEG Peak Time (s)",
+        "DBS Peak Index", "DBS Peak Time (s)"
+    ]
+
+    row = [
+        timestamp,
+        sub_id,
+        block,
+        eeg_file,
+        dbs_file,
+        eeg_peak_idx,
+        eeg_peak_time,
+        dbs_peak_idx,
+        dbs_peak_time
+    ]
+
+    write_header = True
+    if os.path.exists(output_path):
+        with open(output_path, "r") as f:
+            first_line = f.readline()
+            if first_line.strip():
+                write_header = False
+
+    try:
+        with open(output_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(header)
+            writer.writerow(row)
+        print(f"---\nSync info saved to {output_path}")
+    except Exception as e:
+        print(f"Error saving sync info: {e}")
+
+
+if __name__ == "__main__":
+    # load eeg_power.csv
+    eeg_power = pd.read_csv("outputs/outputData/eeg_power.csv", index_col=0)
+    # load dbs_signal.csv
+    dbs_signal = pd.read_csv("outputs/outputData/dbs_signal.csv", index_col=0)
+    # synchronize data
+    synchronize_data(eeg_power, dbs_signal)
