@@ -3,8 +3,16 @@ import mne
 import pandas as pd
 import numpy as np
 import numbers
+
+import sys
+import os
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from source.power_calculater import compute_samplewise_eeg_power
-from source.sync_artefact_finder import find_eeg_peak, find_dbs_peak, detect_eeg_drop_onset_window, detect_eeg_change_window, select_eeg_channel, detect_sync_from_eeg, confirm_sync_selection, save_sync_peak_info
+from source.sync_artefact_finder import find_eeg_peak, find_dbs_peak, detect_eeg_drop_onset_window, detect_eeg_change_window, select_eeg_channel, detect_sync_from_eeg, confirm_sync_selection
 
 
 class TestArtefactFinderFunctions(unittest.TestCase):
