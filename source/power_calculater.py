@@ -6,83 +6,17 @@ from scipy.ndimage import uniform_filter1d
 import matplotlib.pyplot as plt
 
 
-def compute_eeg_power(
-    raw_eeg: mne.io.Raw, 
-    freq_low: int, 
-    freq_high: int, 
-    duration_sec: int=120, 
-    channel: str="POz",
-    plot=False
-    ) -> Tuple[np.ndarray, np.ndarray]:
-    """ 
-    Computes the power of EEG data in a specified frequency range and duration.
-
-    Args:
-        raw_eeg (mne.io.Raw): The raw EEG data.
-        freq_low (int): Lower frequency bound for power computation.
-        freq_high (int): Upper frequency bound for power computation.
-        duration_sec (int, optional): Duration in seconds for which to compute the power. Defauls to 120 seconds.
-        channel (str, optional): The EEG channel to analyze. Defaults to "Cz".
-
-    Returns:
-        Tuple[numpy.ndarray, numpy.ndarray]: A tuple containing:
-            - eeg_power_band_sum: The computed power in the specified frequency range. Caveat: The power is averaged across all channels if channel is None. 
-                Also, the resulting power is lower-resolution power trace, not sample-wise EEG power.
-            - power_time_axis: Time axis corresponding to the computed power.
-    """
-
-    # Crop and filter EEG
-    _raw = raw_eeg.copy()
-    raw_cropped = _raw.crop(tmax=duration_sec)
-    raw_filtered = raw_cropped.filter(l_freq=freq_low, h_freq=freq_high, verbose='ERROR')
-
-    fs = raw_filtered.info["sfreq"]
-    # check nyqist and adjust frequency range
-    nyquist_freq = fs / 2
-    if freq_low > nyquist_freq or freq_high > nyquist_freq:
-        raise ValueError(f"Frequency range exceeds Nyquist frequency: {nyquist_freq} Hz")
-    if freq_low < 0 or freq_high < 0:
-        raise ValueError("Frequency range must be positive")
-    if freq_low >= freq_high:
-        raise ValueError("Frequency low must be less than frequency high")
-    # Define frequencies and wavelet parameters
-    freqs = np.arange(freq_low, freq_high, 1)
-    n_cycles = freqs / 1.5  
-    time_bandwidth = 4.0  
-    # if channel is given, use it, otherwise use all channels
-    if channel is None:
-        picks = "eeg"
-    else:
-        picks = channel    # only one channel is used for the analysis
-
-    power = raw_filtered.compute_tfr(
-        method='multitaper',
-        picks=picks,
-        freqs=freqs,
-        n_cycles=n_cycles,
-        time_bandwidth=time_bandwidth,
-        decim=1,
-    )
-    eeg_power_band_sum = power.data.mean(axis=0).sum(axis=0)  
-
-    power_time_axis = power.times
-    if plot:
-        # plot the power
-        plt.figure()
-        plt.plot(power.times, eeg_power_band_sum)
-        plt.title(f"Power of {picks} in {freq_low}-{freq_high} Hz")
-        plt.xlabel("Time (s)")
-        plt.ylabel("Power")
-        plt.show()
-
-    return eeg_power_band_sum, power_time_axis
+from typing import Tuple, Optional
+import numpy as np
+import matplotlib.pyplot as plt
+import mne
 
 
 def compute_samplewise_eeg_power(
     raw_eeg: mne.io.Raw,
     freq_low: int,
     freq_high: int,
-    duration_sec: int = 120,
+    time_range: Tuple[float, float] = (0, 120),
     channel: str = "POz",
     smoothing_sec: Optional[float] = 0.5,
     plot: bool = False,
@@ -104,8 +38,11 @@ def compute_samplewise_eeg_power(
     Returns:
         Tuple[np.ndarray, np.ndarray]: (power_trace, time_axis)
     """
+    start_sec, end_sec = time_range
+    if start_sec < 0 or end_sec <= start_sec:
+        raise ValueError("Invalid time range: must be (start < end) and non-negative.")
     # Copy, crop, and filter EEG
-    _raw = raw_eeg.copy().pick(channel).crop(tmax=duration_sec)
+    _raw = raw_eeg.copy().pick(channel).crop(tmin=start_sec, tmax=end_sec)
     fs = _raw.info["sfreq"]
     _raw.filter(l_freq=freq_low, h_freq=freq_high, verbose='ERROR')
 
@@ -126,7 +63,7 @@ def compute_samplewise_eeg_power(
 
     if plot:
         plt.figure(figsize=(12, 4))
-        plt.plot(time_axis, power_trace, label=f'{freq_low}-{freq_high} Hz Power')
+        plt.plot(time_axis + start_sec, power_trace, label=f'{freq_low}-{freq_high} Hz ({start_sec}-{end_sec} Power')
         plt.xlabel("Time (s)")
         plt.ylabel("Power")
         plt.title(f"Sample-wise Band Power ({channel}) - Smoothed ({smoothing_sec}s)")
@@ -134,7 +71,7 @@ def compute_samplewise_eeg_power(
         plt.tight_layout()
         plt.show()
 
-    return power_trace, time_axis
+    return power_trace, time_axis+start_sec
 
 from source.data_loader import load_eeg_data
 
