@@ -69,6 +69,7 @@ def dbs_artifact_settings():
     if input("---\nThe default filter frequencies for frequency DBS artifact detection are 120 - 130 Hz, in the first 120 seconds. \nDo you want to adapt these? (yes/no): ").strip().lower() == "yes":
         dbs_freq_min = int(input("---\nEnter the minimum frequency for DBS artifact detection (usually 120): ").strip())
         dbs_freq_max = int(input("---\nEnter the maximum frequency for DBS artifact detection (usually 130): ").strip())
+        # Tdo: make sure this is a range so we can select the second recording
         dbs_duration_sec = int(input("---\nEnter the duration of the DBS signal for artifact detection (in seconds): ").strip())
     else:
         dbs_freq_min = 120
@@ -150,6 +151,9 @@ def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:
     df["recording"] = rec_num
     df["SampleRateInHz"] = fs
     print(f"---\nSuccessfully read DBS recording {rec_num} with sampling frequency {fs} Hz")
+    # print length of signal in seconds and samples
+    print(f"...length of dbs signal in seconds: {len(df)/fs}")
+    print(f"...length of dbs signal in samples: {len(df)}")
     return df
 
 
