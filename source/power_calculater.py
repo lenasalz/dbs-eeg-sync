@@ -13,11 +13,10 @@ import mne
 
 
 def compute_samplewise_eeg_power(
-    raw_eeg: mne.io.Raw,
+    eeg_raw: mne.io.Raw,
     freq_low: int,
     freq_high: int,
-    time_range: Tuple[float, float] = (0, 120),
-    channel: str = "POz",
+    channel: str = 'POz',
     smoothing_sec: Optional[float] = 0.5,
     plot: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -30,7 +29,6 @@ def compute_samplewise_eeg_power(
         raw_eeg (mne.io.Raw): The raw EEG data.
         freq_low (int): Lower frequency bound.
         freq_high (int): Upper frequency bound.
-        duration_sec (int): Duration in seconds (default 120).
         channel (str): Channel to analyze (default "POz").
         smoothing_sec (float): Smoothing window length in seconds (default 0.5s).
         plot (bool): Whether to plot the power trace.
@@ -38,11 +36,9 @@ def compute_samplewise_eeg_power(
     Returns:
         Tuple[np.ndarray, np.ndarray]: (power_trace, time_axis)
     """
-    start_sec, end_sec = time_range
-    if start_sec < 0 or end_sec <= start_sec:
-        raise ValueError("Invalid time range: must be (start < end) and non-negative.")
+    
     # Copy, crop, and filter EEG
-    _raw = raw_eeg.copy().pick(channel).crop(tmin=start_sec, tmax=end_sec)
+    _raw = eeg_raw.copy().pick(channel)
     fs = _raw.info["sfreq"]
     _raw.filter(l_freq=freq_low, h_freq=freq_high, verbose='ERROR')
 
@@ -63,7 +59,7 @@ def compute_samplewise_eeg_power(
 
     if plot:
         plt.figure(figsize=(12, 4))
-        plt.plot(time_axis + start_sec, power_trace, label=f'{freq_low}-{freq_high} Hz ({start_sec}-{end_sec} Power')
+        plt.plot(time_axis, power_trace, label=f'{freq_low}-{freq_high} Hz Power')
         plt.xlabel("Time (s)")
         plt.ylabel("Power")
         plt.title(f"Sample-wise Band Power ({channel}) - Smoothed ({smoothing_sec}s)")
@@ -71,7 +67,8 @@ def compute_samplewise_eeg_power(
         plt.tight_layout()
         plt.show()
 
-    return power_trace, time_axis+start_sec
+    return power_trace, time_axis
+
 
 from source.data_loader import load_eeg_data
 

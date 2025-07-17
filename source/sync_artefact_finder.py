@@ -2,16 +2,20 @@
 # Functions for finding synchronization peaks in EEG and DBS data.
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import mne
 from scipy.signal import find_peaks, savgol_filter
 from datetime import datetime
-import csv
-from datetime import datetime
 import plotly.graph_objects as go
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
-from source.power_calculater import compute_samplewise_eeg_power
+import sys
+import os
+
+# Add the local `source` directory to the import path
+sys.path.insert(0, os.path.abspath("source"))
+from power_calculater import compute_samplewise_eeg_power
+
+import inspect
 
 
 def find_eeg_peak(
@@ -202,7 +206,7 @@ def detect_eeg_drop_onset_window(
     return drop_onset_idx, drop_onset_time, smoothed
 
 
-def detect_eeg_change_window(
+def detect_eeg_sync_window(
     eeg_power,
     eeg_fs,
     smooth_window=301,
@@ -279,182 +283,91 @@ def detect_eeg_change_window(
     return result, smoothed
 
 
-def select_eeg_channel(eeg_raw, freq_low, freq_high, channel="Cz"):
-    """
-    Selects a specific EEG channel and computes the power in a specified frequency band.
-
-    Args:
-        eeg_raw (mne.io.Raw): The raw EEG data.
-        freq_low (float): Lower frequency bound for power computation.
-        freq_high (float): Upper frequency bound for power computation.
-        channel (str, optional): Name of the EEG channel to analyze. Defaults to "Cz".
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: Tuple containing the computed power and time axis.
-
-    """
-
-    if channel is None:
-        eeg_channel_names = eeg_raw.ch_names
-    else:
-        eeg_channel_names = [channel]
-
-    # select channels of interest
-    eeg_channel_names = ['CPz', 'Pz', 'Oz']
-    n_channels = len(eeg_channel_names)
-    n_cols = 4
-
-    best_channel = None
-    best_magnitude = 0
-    best_result = None
-    best_smoothed = None
-
-    for i, ch in enumerate(eeg_channel_names):
-            try:
-                eeg_power, _ = compute_samplewise_eeg_power(
-                    eeg_raw, freq_low, freq_high, channel=ch
-                )
-            except Exception as e:
-                print(f"Error processing {ch}: {e}")
-                continue
-
-    # Detect drop/spike
-            result, smoothed = detect_eeg_change_window(
-                eeg_power,
-                eeg_fs=int(eeg_raw.info['sfreq']),
-                plot=False
-            )
-            if result and abs(result["magnitude"]) > best_magnitude:
-                best_channel = ch
-                best_magnitude = abs(result["magnitude"])
-                best_result = result
-                best_smoothed = smoothed
-
-            if best_channel:
-                print(f"    Type: {best_result['type']}, Magnitude: {best_result['magnitude']:.3f}, Time: {best_result['time']:.2f}s")
-
-    if best_channel is None:
-        print("⚠️ No suitable channel found.")
-        return None, None
-
-    return best_channel, best_result, best_smoothed
-
-
 def detect_sync_from_eeg(
     eeg_raw: mne.io.Raw,
     freq_low: float,
     freq_high: float,
-    duration_sec: int = 120,
+    time_range: Tuple[float, float] = (0, 120),
     eeg_fs: Optional[int] = None,
-    channel_list: list = ["CPz", "Pz", "Oz", "Fz", "Cz", "T7", "T8", "O1", "O2"],
+    channel_list: list = ['Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1', 'O2'],
     smooth_window: int = 301,
     window_size_sec: int = 2,
     plot: bool = False,
     save_dir: Optional[str] = None,
-) -> Tuple[Optional[str], Optional[int], Optional[float], Optional[dict], Optional[np.ndarray]]:
-    """
-    EEG samplewise power computation, best channel selection, and change detection (drop or spike).
-    
-    Args:
-        eeg_raw (mne.io.Raw): Raw EEG data.
-        freq_low (float): Lower frequency bound.
-        freq_high (float): Upper frequency bound.
-        duration_sec (float): Duration in seconds of the eeg signal to analyze. Defaults to 120 seconds.
-        eeg_fs (int, optional): Sampling frequency. If None, extracted from eeg_raw.
-        channel_list (list): List of channels to consider. Defaults to ["CPz", "Pz", "Oz", "Fz", "Cz", "T7", "T8", "O1", "O2"]. If None, all channels are used.
-        smooth_window (int): Window size for smoothing. Defaults to 301.
-        window_size_sec (int): Duration in seconds for diff window. Defaults to 2.
-        plot (bool): Whether to plot the smoothed power with sync /change idx marker.
-        save_dir (str, optional): Directory to save the plot.
-    
-    Returns:
-        Tuple containing:
-            - Best channel name (str)
-            - sync_idx (int): Index of detected drop/spike
-            - sync_time (float): Time of detected drop/spike (seconds)
-            - result (dict): Full result dict from detection
-            - smoothed (np.ndarray): Smoothed power signal of best channel
-    """
-
+) -> Tuple[
+    Optional[str],
+    List[int],
+    List[float],
+    List[dict],
+    Optional[np.ndarray],
+]:
     if eeg_fs is None:
         eeg_fs = int(eeg_raw.info['sfreq'])
 
-    # ToDo: add duration_sec as length of the eeg data
-
-    # crop the eeg data to duration_sec, if given
-    if duration_sec:
-        start_time = 0
-        stop_time = duration_sec
-        eeg_raw.crop(tmin=start_time, tmax=stop_time)
-        print(f"EEG data cropped to {duration_sec} seconds.")
+    start_time, stop_time = time_range
+    eeg_raw = eeg_raw.copy().crop(tmin=start_time, tmax=stop_time)
+    print(f"EEG data cropped to {stop_time - start_time:.1f} seconds.")
 
     best_channel = None
-    best_magnitude = 0
     best_result = None
     best_smoothed = None
 
+    # filter channel_list to only include channels that are in the EEG data
+    available_channels = eeg_raw.ch_names
+    # check if some of the available channels are in channel_list, if not, let user select a channel
+    channel_list = [ch for ch in channel_list if ch in available_channels]
+    if len(channel_list) == 0:
+        print("⚠️ No valid channels found in the EEG data.")
+        print(f"Available channels: {available_channels}")
+        channel = input("Please select a channel: ")
+        if channel not in available_channels:
+            print("Invalid channel. Please select a valid channel.")
+            return None, [], [], [], None
+    
     for ch in channel_list:
         try:
             eeg_power, _ = compute_samplewise_eeg_power(
-                eeg_raw, freq_low, freq_high, channel=ch
+                eeg_raw,
+                freq_low=freq_low,
+                freq_high=freq_high,
+                channel=ch
             )
         except Exception as e:
-            print(f"⚠️ Error processing {ch}: {e}")
+            print(f"⚠️ Skipping invalid channel: {ch}: {e}")
             continue
 
         smoothed = savgol_filter(eeg_power, window_length=smooth_window, polyorder=3)
         window_size = int(window_size_sec * eeg_fs)
-
-        min_diff = np.inf
-        max_diff = -np.inf
-        drop_onset_idx = None
-        spike_onset_idx = None
-
+    
+        diffs = []
         for i in range(0, len(smoothed) - 2 * window_size):
             pre = smoothed[i : i + window_size]
             post = smoothed[i + window_size : i + 2 * window_size]
             diff = np.mean(post) - np.mean(pre)
+            diffs.append((i + window_size, diff))
 
-            if diff < min_diff:
-                min_diff = diff
-                drop_onset_idx = i + window_size
+        if not diffs:
+            continue
 
-            if diff > max_diff:
-                max_diff = diff
-                spike_onset_idx = i + window_size
+        idx, val = max(diffs, key=lambda x: abs(x[1]))
+        result = {
+            "type": "drop" if val < 0 else "spike",
+            "index": idx,
+            "time": start_time + idx / eeg_fs,
+            "magnitude": val,
+        }
 
-        if abs(min_diff) >= abs(max_diff):
-            result = {
-                "type": "drop",
-                "index": drop_onset_idx,
-                "time": drop_onset_idx / eeg_fs if drop_onset_idx else None,
-                "magnitude": min_diff,
-            }
-        else:
-            result = {
-                "type": "spike",
-                "index": spike_onset_idx,
-                "time": spike_onset_idx / eeg_fs if spike_onset_idx else None,
-                "magnitude": max_diff,
-            }
-
-        if result and abs(result["magnitude"]) > best_magnitude:
+        if best_result is None or abs(result["magnitude"]) > abs(best_result["magnitude"]):
             best_channel = ch
-            best_magnitude = abs(result["magnitude"])
             best_result = result
             best_smoothed = smoothed
 
-    if best_channel is None:
-        print("⚠️ No suitable channel found.")
-        return None, None, None, None, None
-
     if plot:
-        print("---\nPlease close the EEG sync plot to continue.\n---")
         plt.figure(figsize=(10, 4))
         plt.plot(best_smoothed, label="Smoothed Power")
-        plt.axvline(best_result["index"], 
-                    color="red" if best_result["type"] == "drop" else "green", 
-                    linestyle="--", label=f"Sync Point, {best_result['time']:.2f}s, {best_result['index']} samples")
-        plt.title(f"EEG Sync Point Detection ({best_result['type'].capitalize()}) - Channel: {best_channel}")
+        plt.axvline(best_result["index"], color="red" if best_result["type"] == "drop" else "green",
+                    linestyle="--", label=f"{best_result['type']} at {best_result['time']:.2f}s")
+        plt.title(f"EEG Sync Detection - {best_channel}")
         plt.xlabel("Samples")
         plt.ylabel("Power")
         plt.legend()
@@ -462,13 +375,21 @@ def detect_sync_from_eeg(
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            plt.savefig(os.path.join(save_dir, f"change_onset_{best_channel}.png"))
-            # save power to csv in outputs folder with an index column
-            np.savetxt("outputs/outputData/eeg_power.csv", np.column_stack((np.arange(len(best_smoothed)), best_smoothed)), delimiter=",")
-        plt.show()
-        
+            dat = datetime.now().strftime("%Y%m%d_%H%M%S")
+            plt.savefig(os.path.join(save_dir, f"{dat}_sync_onset_{best_channel}.png"))
+            np.savetxt(f"outputs/outputData/{dat}_eeg_power.csv",
+                       np.column_stack((np.arange(len(best_smoothed)), best_smoothed)), delimiter=",")
+        print("---\nPlease close the EEG sync plot to continue.\n---")
 
-    return best_channel, best_result["index"], best_result["time"], best_result, best_smoothed
+        plt.show()
+
+    return (
+        best_channel,
+        best_result["index"],
+        best_result["time"],
+        best_result,
+        best_smoothed
+    )
 
 
 def confirm_sync_selection(
