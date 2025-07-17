@@ -12,14 +12,14 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from source.power_calculater import compute_samplewise_eeg_power
-from source.sync_artefact_finder import find_eeg_peak, find_dbs_peak, detect_eeg_drop_onset_window, detect_eeg_change_window, select_eeg_channel, detect_sync_from_eeg, confirm_sync_selection
+from source.sync_artefact_finder import find_eeg_peak, find_dbs_peak, detect_eeg_drop_onset_window, detect_eeg_sync_window, detect_sync_from_eeg, confirm_sync_selection
 
 
 class TestArtefactFinderFunctions(unittest.TestCase):
 
     def test_find_eeg_peak(self):
         raw = mne.io.RawArray(np.random.randn(9, 130000), mne.create_info(ch_names=['POz', 'CPz', 'Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1'], sfreq=1000, ch_types=['eeg'] * 9))
-        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130, duration_sec=119)
+        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130)
         peak_idx, peak_time = find_eeg_peak(power[0], raw.info['sfreq'], save_dir=None)
         self.assertIsInstance(peak_idx, int)
         self.assertIsInstance(peak_time, float)
@@ -32,23 +32,18 @@ class TestArtefactFinderFunctions(unittest.TestCase):
 
     def test_detect_eeg_drop_onset_window(self):
         raw = mne.io.RawArray(np.random.randn(9, 130000), mne.create_info(ch_names=['POz', 'CPz', 'Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1'], sfreq=1000, ch_types=['eeg'] * 9))
-        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130, duration_sec=119)
+        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130)
         drop_onset_idx, drop_onset_time, smoothed = detect_eeg_drop_onset_window(power, raw.info['sfreq'], smooth_window=301, window_size_sec=2, plot=False, save_dir=None)
         self.assertTrue(isinstance(drop_onset_idx, (int, type(None))))
         self.assertTrue(isinstance(drop_onset_time, (int, type(None))))
         self.assertIsInstance(smoothed, np.ndarray)
 
-    def test_detect_eeg_change_window(self):
+    def test_detect_eeg_sync_window(self):
         raw = mne.io.RawArray(np.random.randn(9, 130000), mne.create_info(ch_names=['POz', 'CPz', 'Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1'], sfreq=1000, ch_types=['eeg'] * 9))
-        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130, duration_sec=119)
-        result, smoothed = detect_eeg_change_window(power, raw.info['sfreq'], smooth_window=301, window_size_sec=2, plot=False, save_dir=None)
+        power = compute_samplewise_eeg_power(raw, freq_low=110, freq_high=130)
+        result, smoothed = detect_eeg_sync_window(power, raw.info['sfreq'], smooth_window=301, window_size_sec=2, plot=False, save_dir=None)
         self.assertIsInstance(result, dict)
         self.assertIsInstance(smoothed, np.ndarray)
-
-    def test_select_eeg_channel(self):
-        raw = mne.io.RawArray(np.random.randn(9, 130000), mne.create_info(ch_names=['POz', 'CPz', 'Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1'], sfreq=1000, ch_types=['eeg'] * 9))
-        channel = select_eeg_channel(raw, freq_low=110, freq_high=130, channel="Cz")
-        self.assertIsNotNone(channel)
 
     def test_detect_sync_from_eeg(self):
         raw = mne.io.RawArray(np.random.randn(9, 130000), mne.create_info(ch_names=['POz', 'CPz', 'Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1'], sfreq=1000, ch_types=['eeg'] * 9))
