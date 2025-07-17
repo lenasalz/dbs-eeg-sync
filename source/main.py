@@ -5,6 +5,7 @@ from slider import run_manual_sync_slider
 
 import pandas as pd
 import sys
+import os
 
 print(sys.executable)
 
@@ -37,9 +38,22 @@ def main():
         # dbs_data = read_lfp_data(dbs_data, block_num)
 
         # Find EEG peak
-        dbs_freq_min, dbs_freq_max, dbs_duration_sec = dbs_artifact_settings()
+        dbs_freq_min, dbs_freq_max, _ = dbs_artifact_settings()
         print("---\nDetecting EEG sync artifact...")
-        channel, eeg_sync_idx, eeg_sync_s, result, smoothed_power = detect_sync_from_eeg(eeg_data, dbs_freq_min, dbs_freq_max, dbs_duration_sec, plot=True, save_dir="outputs/plots")
+
+        # Prompt user for time range
+        max_duration = eeg_data.times[-1]
+        print(f"EEG duration: {max_duration:.2f} seconds")
+
+        start_sec = float(input(f"Enter start time (0 to {max_duration:.2f} sec): "))
+        end_sec = float(input(f"Enter end time ({start_sec:.2f} to {max_duration:.2f} sec): "))
+
+        if not (0 <= start_sec < end_sec <= max_duration):
+            raise ValueError("Invalid time range. Must be within EEG data duration.")
+            
+        time_range = (start_sec, end_sec)
+
+        channel, eeg_sync_idx, eeg_sync_s, result, smoothed_power = detect_sync_from_eeg(eeg_data, freq_low=dbs_freq_min, freq_high=dbs_freq_max, time_range=time_range, plot=True, save_dir="outputs/plots")
  
         # Confirm EEG selection
         if channel is not None and eeg_sync_idx is not None:
@@ -59,7 +73,7 @@ def main():
         else:
             raise ValueError("EEG sync detection failed. Cannot proceed.")
 
-        # Find DBS peak
+        # Find DBS peaky
         dbs_signal =  dbs_data["TimeDomainData"].values
         dbs_fs = dbs_data["SampleRateInHz"][0]
         dbs_peak_idx, dbs_peak_s = find_dbs_peak(dbs_signal, dbs_fs, save_dir="outputs/plots")
