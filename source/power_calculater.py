@@ -4,6 +4,7 @@ from typing import Tuple, Optional
 from scipy.signal import hilbert
 from scipy.ndimage import uniform_filter1d
 import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
 
 
 from typing import Tuple, Optional
@@ -18,6 +19,7 @@ def compute_samplewise_eeg_power(
     freq_high: int,
     channel: str = 'POz',
     smoothing_sec: Optional[float] = 0.5,
+    smooth_window: int = 301,
     plot: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -50,12 +52,21 @@ def compute_samplewise_eeg_power(
     power_trace = np.abs(analytic_signal) ** 2
 
     # Optional smoothing
-    if smoothing_sec and smoothing_sec > 0:
-        smoothing_samples = int(smoothing_sec * fs)
-        power_trace = uniform_filter1d(power_trace, size=smoothing_samples)
+    # if smoothing_sec and smoothing_sec > 0:
+    #     smoothing_samples = int(smoothing_sec * fs)
+        # power_trace = uniform_filter1d(power_trace, size=smoothing_samples)
+    
+    # Apply Savitzky-Golay smoothing
+    if smooth_window and smooth_window > 1:
+        # Ensure odd and less than signal length
+        if smooth_window % 2 == 0:
+            smooth_window += 1
+        smooth_window = min(smooth_window, len(power_trace) - 1 if len(power_trace) % 2 == 0 else len(power_trace))
+        power_trace_smoothed = savgol_filter(power_trace, window_length=smooth_window, polyorder=3)
+
 
     # Time axis
-    time_axis = np.arange(len(power_trace)) / fs
+    time_axis = np.arange(len(power_trace_smoothed)) / fs
 
     if plot:
         plt.figure(figsize=(12, 4))

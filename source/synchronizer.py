@@ -11,7 +11,8 @@ from scipy.signal import resample
 from datetime import datetime
 
 
-def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
+def cut_data_at_sync(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
+    # ToDo: make it work with numpy arrays
     """ 
     Crops the data at the detected peaks and resamples to match the shortest signal.
 
@@ -40,14 +41,19 @@ def crop_data(eeg_data, dbs_data, peak_dbs_idx, peak_index_eeg_fs):
     return cropped_eeg, cropped_dbs
 
 
-def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
+
+def synchronize_data(cropped_eeg, cropped_dbs, resample_data=True, save_dir="outputs/plots", sub_id=None, block=None):
+    
     """
     Synchronizes EEG and DBS data by resampling to the same length efficiently.
 
     Args:
         cropped_eeg (mne.io.Raw): EEG data (MNE object).
         cropped_dbs (pd.DataFrame): DBS data (Pandas DataFrame).
-        save_dir (str, optional): Directory to save the plot.
+        resample_data (bool, optional): Whether to resample the data. Defaults to True. If not given, it will ask the user if they want to resample the data.
+        save_dir (str, optional): Directory to save the plot. Defaults to "outputs/plots".
+        sub_id (str): The subject ID.
+        block (str): The block name.
 
     Returns:
         synchronized_eeg (mne.io.Raw): Resampled EEG data with updated sampling frequency.
@@ -75,7 +81,9 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     target_fs = min(eeg_fs, dbs_fs)
 
     # Ask user if they want to resample the data to the target sampling frequency
-    resample_data = input("---\nResample data to the lower sampling frequency? (yes/no): ").strip().lower()
+    if resample_data is None:
+
+        resample_data = input("---\nResample data to the lower sampling frequency? (yes/no): ").strip().lower()
     if resample_data == "yes":
         # Resample EEG using MNE's built-in method if needed
         if eeg_fs != target_fs:
@@ -103,19 +111,19 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
 
     # Plot the signals as overlay
     plt.figure(figsize=(12, 5))
-    plt.plot(eeg_times, resampled_eeg.get_data()[0], label="EEG Signal (Channel 0)", color='blue', alpha=0.7)
-    plt.plot(dbs_times, resampled_dbs_signal, label="DBS Signal", color='orange', alpha=0.7)
+    plt.plot(eeg_times, resampled_eeg.get_data()[0], label="EEG Signal (Channel 0)", color='orange', alpha=0.7)
+    plt.plot(dbs_times, resampled_dbs_signal, label="DBS Signal", color='blue', alpha=0.7)
     plt.axvline(0, color='r', linestyle='--', label='Detected Peak')
 
     plt.xlabel('Time (s)')
     plt.ylabel('Signal Amplitude')
-    plt.title('Synchronized EEG & DBS Signals')
+    plt.title(f'Synchronized EEG & DBS Signals - {sub_id} | {block}')
     plt.legend()
 
     if save_dir:
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.savefig(f"{save_dir}/eeg_dbs_overlay_{dat}.png")
-        print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay_{dat}.png")
+        plt.savefig(f"{save_dir}/{dat}_eeg_dbs_overlay_{sub_id}_{block}.png")
+        print(f"---\nOverlay plot saved to {save_dir}/eeg_dbs_overlay_{sub_id}_{block}_{dat}.png")
     
     print("---\nPlease close the overlay plot to continue.")
 
@@ -129,14 +137,16 @@ def synchronize_data(cropped_eeg, cropped_dbs, save_dir=None):
     return resampled_eeg, synchronized_dbs
 
 
-def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="outputs/outputData"):
+def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="outputs/outputData", sub_id=None, block=None):
     """
     Saves the synchronized EEG and DBS data.
 
     Args:
         eeg_data (mne.io.Raw): Synchronized EEG data.
         dbs_data (pd.DataFrame): Synchronized DBS data.
-        output_dir (str, optional): Directory to save the files. Defaults to "data".
+        output_dir (str, optional): Directory to save the files. Defaults to "outputs/outputData".
+        sub_id (str): The subject ID.
+        block (str): The block name.
 
     Returns:
         None
@@ -149,12 +159,13 @@ def save_synchronized_data(synchonized_eeg, synchronized_dbs, output_dir="output
         raise ValueError("eeg_data is not an instance of mne.io.Raw")
 
     # Save EEG data in .fif format (MNE format)
-    eeg_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_eeg.fif")
+
+    eeg_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{sub_id}_{block}_synchronized_eeg.fif")
     synchonized_eeg.save(eeg_output_path, overwrite=True)
     print(f"---\nSaved synchronized EEG to {eeg_output_path}")
 
     # Save DBS data as CSV
-    dbs_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + "_synchronized_dbs.csv")
+    dbs_output_path = os.path.join(output_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{sub_id}_{block}_synchronized_dbs.csv")
     synchronized_dbs.to_csv(dbs_output_path, index=False)
     print(f"---\nSaved synchronized DBS to {dbs_output_path}")
 

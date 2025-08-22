@@ -52,6 +52,29 @@ def load_eeg_data(file_path: str):
         ch_types = ['eeg'] * len(ch_names)
         info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
         raw = mne.io.RawArray(data, info)
+        # Get Marker/Event stream
+        marker_stream = next((s for s in streams if s['info']['type'][0].lower() in ['marker', 'markers', 'trigger']), None)
+
+        if marker_stream is not None:
+            marker_times = np.array(marker_stream['time_stamps'])
+            marker_labels = np.array(marker_stream['time_series']).flatten()
+
+            # Convert marker timestamps to sample indices relative to EEG start
+            eeg_start_time = eeg_stream['time_stamps'][0]
+            marker_sample_indices = ((marker_times - eeg_start_time) * sfreq).astype(int)
+
+            # Create event list for MNE
+            event_id_dict = {label: idx + 1 for idx, label in enumerate(np.unique(marker_labels))}
+            events = np.array([[idx, 0, event_id_dict[label]] for idx, label in zip(marker_sample_indices, marker_labels)])
+
+            # Add annotations for visualization (optional)
+            durations = [0] * len(marker_labels)
+            descriptions = marker_labels.astype(str).tolist()
+            annotations = mne.Annotations(onset=marker_sample_indices / sfreq, duration=durations, description=descriptions)
+            raw.set_annotations(annotations)
+        else:
+            print("No marker stream found in the .xdf file")
+            events = None
     else:
         raise ValueError(f"Unsupported file format: {ext}")
     sfreq = raw.info['sfreq']
@@ -61,22 +84,23 @@ def load_eeg_data(file_path: str):
 
 def dbs_artifact_settings():
     """ 
-    Asks user to input the frequency range and duration for the DBS artifact detection.
-    If no input is given, the default values are used.
-    Default values: dbs_freq_min = 120, dbs_freq_max = 130, duration_sec = 120
+    Asks user to input the frequency range and time range for DBS artifact detection.
+    Default: freq 120–130 Hz, time 0–120 s.
     """
-    # ask user if he wants to adapt the filter frequency range, otherwise use default values are taken
-    if input("---\nThe default filter frequencies for frequency DBS artifact detection are 120 - 130 Hz, in the first 120 seconds. \nDo you want to adapt these? (yes/no): ").strip().lower() == "yes":
-        dbs_freq_min = int(input("---\nEnter the minimum frequency for DBS artifact detection (usually 120): ").strip())
-        dbs_freq_max = int(input("---\nEnter the maximum frequency for DBS artifact detection (usually 130): ").strip())
-        # Tdo: make sure this is a range so we can select the second recording
-        dbs_duration_sec = int(input("---\nEnter the duration of the DBS signal for artifact detection (in seconds): ").strip())
-    else:
-        dbs_freq_min = 120
-        dbs_freq_max = 130
-        dbs_duration_sec = 120
+    if input("---\nThe default settings are: frequency 120–130 Hz, time 0–120 seconds.\nDo you want to adapt these? (yes/no): ").strip().lower() == "yes":
+        dbs_freq_min = int(input("---\nEnter the minimum frequency (usually 120): ").strip())
+        dbs_freq_max = int(input("---\nEnter the maximum frequency (usually 130): ").strip())
 
-    return dbs_freq_min, dbs_freq_max, dbs_duration_sec
+        time_input = input("---\nEnter the time range in seconds (e.g., '0-120' or just '120'): ").strip()
+        if '-' in time_input:
+            start_time, end_time = map(int, time_input.split('-'))
+        else:
+            start_time, end_time = 0, int(time_input)
+    else:
+        dbs_freq_min, dbs_freq_max = 120, 130
+        start_time, end_time = 0, 120
+
+    return dbs_freq_min, dbs_freq_max, start_time, end_time
 
 
 def open_json_file(filepath: str) -> dict:
