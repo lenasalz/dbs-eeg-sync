@@ -81,6 +81,7 @@ def compute_samplewise_eeg_power(
     return power_trace, time_axis
 
 
+
 from source.data_loader import load_eeg_data
 
 if __name__ == '__main__':
