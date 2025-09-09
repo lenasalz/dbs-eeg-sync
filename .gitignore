@@ -180,3 +180,26 @@ Thumbs.db
 # Data (EEG, DBS, and other large datasets)
 data/
 outputs/ 
+
+# ignore files with the following endings
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.webp
+*.svg
+*.eps
+*.xlsx
+*.csv
+*.json
+*.set
+*.edf
+*.bdf
+*.gdf
+*.bdf
+*.bdf
+*.bdf
