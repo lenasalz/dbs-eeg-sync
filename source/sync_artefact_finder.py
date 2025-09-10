@@ -287,6 +287,7 @@ def detect_eeg_sync_artifact(
         _channel_scores.sort(key=lambda x: x[0], reverse=True)
         top_preview = ", ".join([f"{c}:{m:.3g}" for m, c, _ in _channel_scores[:5]])
         print(f"Top channels by |Δpower|: {top_preview}")
+        print("Close EEG sync plot to continue")
 
     # Plot once for the best channel only
     if plot and best_result is not None and best_power is not None:
@@ -323,8 +324,6 @@ def detect_eeg_sync_artifact(
             ))
 
         plt.show()
-
-    print("Close EEG sync plot to continue")
 
     # Final return values (GLOBAL index/time). If nothing found, return Nones
     if best_result is None:
