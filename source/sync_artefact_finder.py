@@ -172,7 +172,32 @@ def detect_sync_from_eeg(
             continue
 
         # Optional smoothing before windowed diff (use the smoothed signal for stability)
-        smoothed = savgol_filter(eeg_power, window_length=smooth_window, polyorder=3)
+        # Choose a valid Savitzky–Golay window length given series length and constraints
+        polyorder = 3
+        n = len(eeg_power)
+        # smallest odd window strictly greater than polyorder
+        min_wl = polyorder + 2
+        if min_wl % 2 == 0:
+            min_wl += 1
+        # largest odd window not exceeding n
+        max_wl = n if (n % 2 == 1) else (n - 1)
+
+        if max_wl >= min_wl:
+            # clamp requested smooth_window into [min_wl, max_wl] and ensure odd
+            wl = min(smooth_window, max_wl)
+            if wl % 2 == 0:
+                wl -= 1
+            wl = max(wl, min_wl)
+            smoothed = savgol_filter(eeg_power, window_length=wl, polyorder=polyorder)
+        else:
+            # Series too short for Savitzky–Golay; fall back to a light uniform filter or no smoothing
+            if n >= 5:
+                fallback = min(5, n)
+                smoothed = uniform_filter1d(eeg_power, size=fallback)
+            else:
+                smoothed = eeg_power.astype(float)
+            print(f"⚠️ Savitzky–Golay smoothing skipped on channel {ch}: signal too short (n={n}).")
+
         window_size = int(window_size_sec * eeg_fs)
         if 2 * window_size >= len(smoothed):
             print(f"⚠️ Signal too short for windowed diff on channel {ch}")
@@ -241,7 +266,7 @@ def detect_sync_from_eeg(
         plt.figure(figsize=(10, 4))
         plt.plot(time_vector_global, best_power, label=f"Power {best_channel}")
 
-        event_time = best_result["onset_time"]
+        event_time = best_result["time"]
         plt.axvline(
             event_time,
             color="red" if best_result["type"] == "drop" else "green",
@@ -314,5 +339,3 @@ def confirm_sync_selection(
             return False
         else:
             print("Please enter 'yes' or 'no'.")
-
-            
