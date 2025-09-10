@@ -20,6 +20,9 @@ def load_eeg_data(file_path: str):
         FileNotFoundError: If the file does not exist.
         ValueError: If the file format is unsupported.
     """
+    file_path = file_path.strip('\'"')
+    file_path = os.path.normpath(os.path.expanduser(file_path))
+    
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
     
@@ -85,20 +88,33 @@ def load_eeg_data(file_path: str):
 def dbs_artifact_settings():
     """ 
     Asks user to input the frequency range and time range for DBS artifact detection.
-    Default: freq 120–130 Hz, time 0–120 s.
+    Default: freq 120–130 Hz, time = full available range (None, None).
     """
-    if input("---\nThe default settings are: frequency 120–130 Hz, time 0–120 seconds.\nDo you want to adapt these? (yes/no): ").strip().lower() == "yes":
+    answer = input(
+        "---\nThe DBS default settings are: frequency 120–130 Hz, full time range.\n"
+        "Do you want to adapt these? (yes/no): "
+    ).strip().lower()
+
+    if answer == "yes":
+        # Frequency range
         dbs_freq_min = int(input("---\nEnter the minimum frequency (usually 120): ").strip())
         dbs_freq_max = int(input("---\nEnter the maximum frequency (usually 130): ").strip())
 
-        time_input = input("---\nEnter the time range in seconds (e.g., '0-120' or just '120'): ").strip()
-        if '-' in time_input:
-            start_time, end_time = map(int, time_input.split('-'))
+        # Time range
+        time_input = input(
+            "---\nEnter the DBS time range in seconds "
+            "(e.g., '5-120', '120' for 0–120, or leave blank for full range): "
+        ).strip()
+
+        if time_input == "":
+            start_time, end_time = None, None   # full range
+        elif "-" in time_input:
+            start_time, end_time = map(int, time_input.split("-"))
         else:
             start_time, end_time = 0, int(time_input)
     else:
         dbs_freq_min, dbs_freq_max = 120, 130
-        start_time, end_time = 0, 120
+        start_time, end_time = None, None   # full range by default
 
     return dbs_freq_min, dbs_freq_max, start_time, end_time
 
@@ -113,6 +129,8 @@ def open_json_file(filepath: str) -> dict:
     Returns:
         dict: Dictionary containing the JSON data.
     """
+    filepath = filepath.strip('\'"')
+    filepath = os.path.normpath(os.path.expanduser(filepath))
     with open(filepath) as jsonfile:
         data = json.load(jsonfile)
     return data
@@ -208,4 +226,3 @@ if __name__ == "__main__":
     file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
     eeg_data = load_eeg_data(file_path)
     print(eeg_data)
-

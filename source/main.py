@@ -1,5 +1,5 @@
 from data_loader import load_eeg_data, dbs_artifact_settings, open_json_file, select_recording, read_time_domain_data
-from sync_artefact_finder import find_dbs_peak, detect_sync_from_eeg, confirm_sync_selection
+from sync_artefact_finder import detect_dbs_sync_artifact, detect_eeg_sync_artifact, confirm_sync_selection
 from synchronizer import cut_data_at_sync, synchronize_data, save_synchronized_data, save_sync_info
 from slider import run_manual_sync_slider
 
@@ -52,8 +52,7 @@ def main():
             
         time_range = (start_sec, end_sec)
 
-        print("---\nPlease close the EEG sync plot to continue.\n---")
-        channel, eeg_sync_idx, eeg_sync_s, result, smoothed_power = detect_sync_from_eeg(eeg_data, freq_low=dbs_freq_min, freq_high=dbs_freq_max, time_range=time_range, plot=True, save_dir='outputs/plots', sub_id=sub_id, block=block)
+        channel, eeg_sync_idx, eeg_sync_s, result, smoothed_power = detect_eeg_sync_artifact(eeg_data, freq_low=dbs_freq_min, freq_high=dbs_freq_max, time_range=time_range, plot=True, save_dir='outputs/plots', sub_id=sub_id, block=block)
  
         # Confirm EEG selection
         if channel is not None and eeg_sync_idx is not None:
@@ -77,7 +76,7 @@ def main():
         dbs_signal =  dbs_data["TimeDomainData"].values
         dbs_fs = dbs_data["SampleRateInHz"][0]
         print("---\nPlease close DBS sync plot to continue")
-        dbs_peak_idx, dbs_peak_s = find_dbs_peak(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_id=sub_id, block=block)
+        dbs_peak_idx, dbs_peak_s = detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_id=sub_id, block=block)
 
         # Save peak info
         save_sync_info(sub_id, block, eeg_file, dbs_file, eeg_sync_idx, eeg_sync_s, dbs_peak_idx, dbs_peak_s)
