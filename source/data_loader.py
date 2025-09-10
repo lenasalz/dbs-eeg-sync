@@ -124,11 +124,14 @@ def open_json_file(filepath: str) -> dict:
     Opens a JSON file and returns its contents as a dictionary.
 
     Args:
-        filepath (str): Path to the JSON file.
+        filepath: Path to the JSON file, accepts both string and Path objects.
 
     Returns:
         dict: Dictionary containing the JSON data.
     """
+    if isinstance(filepath, os.PathLike):
+        filepath = str(filepath)
+
     filepath = filepath.strip('\'"')
     filepath = os.path.normpath(os.path.expanduser(filepath))
     with open(filepath) as jsonfile:
