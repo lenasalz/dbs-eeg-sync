@@ -58,7 +58,7 @@ def detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_i
     plt.title(f'DBS Artifact Detection - {sub_id} | {block}')
     plt.legend()
 
-    if save_dir:
+    if save_dir is not None:
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
         plt.savefig(f"{save_dir}/{dat}_syncDBS_{sub_id}_{block}.png")
         print(f"---\nPlot saved to {save_dir}/{dat}_syncDBS_{sub_id}_{block}.png")
@@ -297,7 +297,7 @@ def detect_eeg_sync_artifact(
         plt.figure(figsize=(10, 4))
         plt.plot(time_vector_global, best_power, label=f"Power {best_channel}")
 
-        event_time = best_result["onset_time"]
+        event_time = best_result["time"]
         plt.axvline(
             event_time,
             color="red" if best_result["type"] == "drop" else "green",

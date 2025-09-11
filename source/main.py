@@ -76,14 +76,14 @@ def main():
         dbs_signal =  dbs_data["TimeDomainData"].values
         dbs_fs = dbs_data["SampleRateInHz"][0]
         print("---\nPlease close DBS sync plot to continue")
-        dbs_peak_idx, dbs_peak_s = detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_id=sub_id, block=block)
+        dbs_sync_idx, dbs_sync_s = detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_id=sub_id, block=block)
 
         # Save peak info
-        save_sync_info(sub_id, block, eeg_file, dbs_file, eeg_sync_idx, eeg_sync_s, dbs_peak_idx, dbs_peak_s)
+        save_sync_info(sub_id, block, eeg_file, dbs_file, eeg_sync_idx, eeg_sync_s, dbs_sync_idx, dbs_sync_s)
 
         # Synchronize EEG and cropped DBS
         print("---\nSynchronizing EEG and DBS...")
-        cropped_eeg, cropped_dbs = cut_data_at_sync(eeg_data, dbs_data, dbs_peak_idx, eeg_sync_idx)
+        cropped_eeg, cropped_dbs = cut_data_at_sync(eeg_data, dbs_data, dbs_sync_idx, eeg_sync_idx)
         # Plot synchronized signals
         synchonized_eeg, synchronized_dbs = synchronize_data(cropped_eeg, cropped_dbs, resample_data=None, save_dir="outputs/plots", sub_id=sub_id, block=block)
 
