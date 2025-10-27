@@ -203,3 +203,12 @@ outputs/
 *.bdf
 *.bdf
 *.bdf
+
+# Outputs and caches
+outputs/
+notebooks/outputs/
+**/__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/

@@ -17,3 +17,6 @@ packages = ["source"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.scripts]
+dbs_eeg_sync = "dbs_eeg_sync.cli:main"
