@@ -7,12 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
 
-from typing import Tuple, Optional
-import numpy as np
-import matplotlib.pyplot as plt
-import mne
-
-
 def compute_samplewise_eeg_power(
     eeg_raw: mne.io.Raw,
     freq_low: int,
@@ -66,14 +60,14 @@ def compute_samplewise_eeg_power(
 
 
     # Time axis
-    time_axis = np.arange(len(power_trace_smoothed)) / fs
+    time_axis = np.arange(len(power_trace)) / fs
 
     if plot:
         plt.figure(figsize=(12, 4))
         plt.plot(time_axis, power_trace, label=f'{freq_low}-{freq_high} Hz Power')
         plt.xlabel("Time (s)")
         plt.ylabel("Power")
-        plt.title(f"Sample-wise Band Power ({channel}) - Smoothed ({smoothing_sec}s)")
+        plt.title(f"Sample-wise Band Power ({channel}))")
         plt.legend()
         plt.tight_layout()
         plt.show()

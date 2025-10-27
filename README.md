@@ -8,10 +8,10 @@
 - Potentially try to find the best drop in all channels first, and use this for syncrhonization?-
 - left and right electrodes seem sometimes opposed with drop / spike
 
-## Synchronization Procedure
+## Recording Synchronization Procedure
 1. Start the EEG recording
 2. Start the DBS Streaming 
-3. Reduce the DBS amplitude by at least 0.2mA to indcue an artifact in the DBS **and** EEG data.
+3. Reduce the DBS amplitude by at least 0.5mA to indcue an artifact in the DBS **and** EEG data.
 4. Increase the amplitude again in the BrainSense:tm: App and wait until it is back to the initial stimulation.  
 
 ---
