@@ -90,6 +90,26 @@ def dbs_artifact_settings():
     Asks user to input the frequency range and time range for DBS artifact detection.
     Default: freq 120–130 Hz, time = full available range (None, None).
     """
+
+# AFTER:
+def dbs_artifact_settings(freq_min: float | None = None,
+                          freq_max: float | None = None,
+                          tmin: float | None = None,
+                          tmax: float | None = None,
+                          interactive: bool = False):
+    """
+    Frequency range and time range settings for DBS artifact detection.
+    Default: freq 120–130 Hz, time = full available range (None, None).
+    If interactive=False (default), return given values or sensible defaults
+    without asking the user. If interactive=True, keep the current prompts.
+    """
+
+    if not interactive:
+        fmin = 120.0 if freq_min is None else float(freq_min)
+        fmax = 130.0 if freq_max is None else float(freq_max)
+        return fmin, fmax, tmin, tmax
+
+        
     answer = input(
         "---\nThe DBS default settings are: frequency 120–130 Hz, full time range.\n"
         "Do you want to adapt these? (yes/no): "
@@ -139,19 +159,14 @@ def open_json_file(filepath: str) -> dict:
     return data
 
 
-def select_recording(json_data: dict) -> int:
+def select_recording(json_data, index: int | None = None):
     """
-    Prompts the user to select a recording from the JSON data.
-
-    Args:
-        json_data (dict): Parsed JSON data.
-
-    Returns:
-        int: Selected recording number.
-    
-    Raises:
-        ValueError: If no recordings are available for selection.
+    If index is provided, return it without prompting.
+    Otherwise, fall back to interactive selection.
     """
+    if index is not None:
+        return int(index)
+
     recordings = json_data.get("BrainSenseTimeDomain", [])
     n_recordings = len(recordings)
 

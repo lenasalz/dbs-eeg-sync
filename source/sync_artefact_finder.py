@@ -7,7 +7,7 @@ import mne
 from scipy.signal import find_peaks, savgol_filter
 from scipy.ndimage import uniform_filter1d
 from datetime import datetime
-import plotly.graph_objects as go
+import numpy as np
 from typing import Tuple, Optional, List
 
 import sys
@@ -19,21 +19,28 @@ sys.path.insert(0, os.path.abspath("source"))
 from source.power_calculater import compute_samplewise_eeg_power
 
 
-def detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_id=None, block=None):
+def detect_dbs_sync_artifact(
+    dbs_signal,
+    dbs_fs,
+    save_dir: Optional[str] = None,
+    sub_id: Optional[str] = None,
+    block: Optional[str] = None,
+    plot: bool = False,
+    **kwargs,
+) -> Tuple[int, float]:
     """
-    Finds the highest peak in DBS data in the positive direction only.
+    Finds the highest positive peak in DBS data.
 
     Args:
         dbs_signal (np.ndarray): The DBS time series data.
-        dbs_fs (int): Sampling frequency of the DBS.
-        save_dir (str, optional): Directory to save the plot. If None, the plot is not saved. Defaults to "outputs/plots".
-        log_file (str, optional): Log file path for saving detected peak info.
-        sub_id (str): The subject ID.
-        block (str): The block name.
+        dbs_fs (int | float): Sampling frequency of the DBS.
+        save_dir (Optional[str]): If provided, save a PNG figure here; if None, do not save.
+        sub_id (Optional[str]): The subject ID (used for filename/title only).
+        block (Optional[str]): The block name (used for filename/title only).
+        plot (bool): If True, call plt.show() (interactive). If False, do not show (headless-friendly).
 
     Returns:
-        dbs_peak_index_fs (int): Peak index in DBS samples.
-        dbs_peak_index_s (float): Peak time in seconds.
+        Tuple[int, float]: (dbs_peak_index_fs, dbs_peak_index_s)
     """
     # Compute time axis
     dbs_time_axis = np.arange(len(dbs_signal)) / dbs_fs
@@ -59,11 +66,16 @@ def detect_dbs_sync_artifact(dbs_signal, dbs_fs, save_dir="outputs/plots", sub_i
     plt.legend()
 
     if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plt.savefig(f"{save_dir}/{dat}_syncDBS_{sub_id}_{block}.png")
-        print(f"---\nPlot saved to {save_dir}/{dat}_syncDBS_{sub_id}_{block}.png")
+        out_path = os.path.join(save_dir, f"{dat}_syncDBS_{sub_id}_{block}.png")
+        plt.savefig(out_path)
+        print(f"---\nPlot saved to {out_path}")
     
-    plt.show()
+    if plot:
+        plt.show()
+    else:
+        plt.close()
 
     return dbs_peak_index_fs, dbs_peak_index_s
 
@@ -118,6 +130,8 @@ def detect_eeg_sync_artifact(
         * All indices and times in the return values AND in `best_result` are **GLOBAL** (relative to the full recording),
           even if a `time_range` crop was used.
         * For large signals, the returned Plotly figure decimates the trace to ~100k points for responsiveness.
+        * If plot=True: may call plt.show(); otherwise save or skip. 
+        * Always plt.close(fig) before returning.
     """
     
     if eeg_fs is None:
@@ -286,8 +300,10 @@ def detect_eeg_sync_artifact(
     if _channel_scores:
         _channel_scores.sort(key=lambda x: x[0], reverse=True)
         top_preview = ", ".join([f"{c}:{m:.3g}" for m, c, _ in _channel_scores[:5]])
-        print(f"Top channels by |Δpower|: {top_preview}")
-        print("Close EEG sync plot to continue")
+        # Only print the heavy hint in interactive mode
+        if plot:
+            print(f"Top channels by |Δpower|: {top_preview}")
+            print("Close EEG sync plot to continue")
 
     # Plot once for the best channel only
     if plot and best_result is not None and best_power is not None:

@@ -9,6 +9,8 @@ dependencies = [
     "mne>=1.9.0",
     "numpy>=2.2.2",
     "pandas>=2.2.3",
+    "pyxdf",
+    "plotly"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -20,3 +22,7 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 dbs_eeg_sync = "dbs_eeg_sync.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dbs_eeg_sync*", "source*"]
