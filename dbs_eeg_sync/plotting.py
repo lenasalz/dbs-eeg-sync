@@ -1,3 +1,11 @@
+"""
+plotting.py — Visualization Utilities for EEG–DBS Synchronization
+------------------------------------------------------------------
+Contains non-interactive Matplotlib plotting functions for synchronized EEG
+and DBS data. All functions support headless operation (no GUI) and save
+figures to disk for reproducible analysis and publication-quality figures.
+"""
+
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime

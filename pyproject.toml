@@ -21,8 +21,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-dbs_eeg_sync = "dbs_eeg_sync.cli:main"
+dbs-eeg-sync = "dbs_eeg_sync.cli:main"   # nice hyphenated command for users
+dbs_eeg_sync = "dbs_eeg_sync.cli:main"   # optional alias
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dbs_eeg_sync*", "source*"]
+
+

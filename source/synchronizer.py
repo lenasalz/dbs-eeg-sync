@@ -1,3 +1,11 @@
+"""
+synchronizer.py — Core Synchronization and Resampling Logic
+------------------------------------------------------------
+Contains computational routines for aligning EEG and DBS signals in time
+and frequency domains. Provides `cut_data_at_sync` and `synchronize_data`
+functions that operate deterministically without GUI or user input.
+"""
+
 from __future__ import annotations
 from typing import Tuple, Dict, Any, Optional
 from pathlib import Path

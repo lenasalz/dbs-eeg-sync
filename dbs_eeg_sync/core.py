@@ -1,8 +1,29 @@
+"""
+core.py — EEG–DBS Synchronization Orchestration
+------------------------------------------------
+Defines the top-level synchronization function `sync_run`, which loads EEG
+and DBS data, detects stimulation artifacts, aligns signals in time, and
+returns a structured `SyncResult`. Designed to be non-interactive and reusable
+both as a library function and through the CLI.
+"""
+
 # dbs_eeg_sync/core.py
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Dict
+
+# Import existing modules from the legacy 'source' package.
+from source.data_loader import (
+    load_eeg_data, dbs_artifact_settings, open_json_file,
+    select_recording, read_time_domain_data
+)
+from source.sync_artefact_finder import (
+    detect_dbs_sync_artifact, detect_eeg_sync_artifact
+)
+from source.synchronizer import (
+    cut_data_at_sync, synchronize_data
+)
 
 @dataclass(frozen=True)
 class SyncResult:
@@ -35,23 +56,6 @@ class SyncResult:
     metadata: dict
 
 
-from typing import Dict
-from pathlib import Path
-
-# Import existing modules.
-# For now, we import directly from the existing 'source' package.
-# Make sure 'source' is included as a package in pyproject.toml until we migrate code.
-from source.data_loader import (
-    load_eeg_data, dbs_artifact_settings, open_json_file,
-    select_recording, read_time_domain_data
-)
-from source.sync_artefact_finder import (
-    detect_dbs_sync_artifact, detect_eeg_sync_artifact
-)
-from source.synchronizer import (
-    cut_data_at_sync, synchronize_data
-)
-
 class SyncError(Exception):
     """Raised when synchronization cannot be completed."""
 
@@ -77,8 +81,8 @@ def sync_run(
     eeg_file: Path,
     dbs_file: Path,
     time_range: tuple[float, float] | None = None,
-    block_index: int | None = 0,                 # <- default 0 to avoid prompt
-    artifact_band: tuple[float, float] | None = (120.0, 130.0),  # <- avoid prompt
+    block_index: int | None = 0,                 # default 0 to avoid prompt
+    artifact_band: tuple[float, float] | None = (120.0, 130.0),  # avoid prompt
 ) -> SyncResult:
     """
     Run end-to-end synchronization without any I/O side effects (no prints, no GUI, no plots, no saving).
@@ -96,16 +100,16 @@ def sync_run(
 
     # Load DBS JSON and extract time-domain block
     json_data = open_json_file(str(dbs_file))
-    block_num = select_recording(json_data, block_index)  # NOTE: if you later add a CLI flag for block index, pass it here.
+    block_num = select_recording(json_data, block_index)
     dbs_df = read_time_domain_data(json_data, block_num)
     dbs_signal = dbs_df["TimeDomainData"].to_numpy()
     dbs_fs = float(dbs_df["SampleRateInHz"].iloc[0])
 
     # Artifact frequency range (from your helper)
     dbs_freq_min, dbs_freq_max, _, _ = dbs_artifact_settings(
-    freq_min=artifact_band[0] if artifact_band else None,
-    freq_max=artifact_band[1] if artifact_band else None,
-    interactive=False
+        freq_min=artifact_band[0] if artifact_band else None,
+        freq_max=artifact_band[1] if artifact_band else None,
+        interactive=False
     )
 
     # Detect EEG artifact (no plotting in core)
@@ -114,8 +118,8 @@ def sync_run(
         freq_low=dbs_freq_min,
         freq_high=dbs_freq_max,
         time_range=time_range,
-        plot=False,              # <- no plots in core
-        save_dir=None,           # <- no saving in core
+        plot=False,            # no plots in core
+        save_dir=None,         # no saving in core
         sub_id=sub_id,
         block=block,
     )
@@ -137,7 +141,7 @@ def sync_run(
         eeg_data, dbs_df, dbs_sync_idx, eeg_sync_idx
     )
     synchronized_eeg, synchronized_dbs = synchronize_data(
-        cropped_eeg, cropped_dbs, resample_data=None,
+        cropped_eeg, cropped_dbs, resample_data=False,
         save_dir=None, sub_id=sub_id, block=block, plot=False
     )
 
