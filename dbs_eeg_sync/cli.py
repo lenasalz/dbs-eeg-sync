@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from .core import sync_run
+from .core import sync_run, save_run_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -92,12 +92,16 @@ def _parse_time_range(s: Optional[str]) -> Optional[Tuple[float, float]]:
         raise argparse.ArgumentTypeError("--time-range must be 'start,end' with 0 <= start < end")
     return (a, b)
 
-def _save_metadata(meta: Dict[str, Any], outdir: Path, tag: str) -> Path:
-    outdir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = outdir / f"{stamp}_metadata_{tag}.json"
-    path.write_text(json.dumps(meta, indent=2))
-    return path
+def _jsonify_args(d: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for k, v in d.items():
+        if isinstance(v, Path):
+            out[k] = str(v)
+        elif isinstance(v, tuple):
+            out[k] = list(v)
+        else:
+            out[k] = v
+    return out
 
 def _result_to_meta(res) -> Dict[str, Any]:
     """
@@ -125,7 +129,7 @@ def _result_to_meta(res) -> Dict[str, Any]:
         "dbs_sync_s": float(res.dbs_sync_s),
         "eeg_fs": float(res.eeg_fs),
         "dbs_fs": float(res.dbs_fs),
-        "channel": res.channel,
+        "eeg_channel": res.channel,
         "artifact_kind": res.artifact_kind,
         "artifact_magnitude": _scalar(res.artifact_magnitude) if res.artifact_magnitude is not None else None,
         "time_range": list(res.time_range) if res.time_range is not None else None,
@@ -196,9 +200,20 @@ def _run_one(args: Dict[str, Any]) -> int:
             time_range=time_range,
             use_gui=use_gui,
         )
-        # Save metadata always
-        meta = _result_to_meta(res)
-        _save_metadata(meta, output_dir, tag=f"{sub_id}_{block}")
+        extra = {
+            "cli": {
+                "sub_id": sub_id,
+                "block": block,
+                "eeg_file": str(eeg_file),
+                "dbs_file": str(dbs_file),
+                "time_range": list(time_range) if time_range else None,
+                "plots": plots,
+                "headless": headless,
+                "gui": use_gui,
+            }
+        }
+        meta_path = save_run_metadata(res, output_dir, extra=extra)
+        logger.info("Saved metadata: %s", meta_path)
 
         # Optional plotting
         if plots:
@@ -232,7 +247,7 @@ def _run_one(args: Dict[str, Any]) -> int:
         logger.exception("Job failed: %s %s (%s)", sub_id, block, e)
         return 1
 
-        
+
 
 # ---------- argparse / entry point ----------
 

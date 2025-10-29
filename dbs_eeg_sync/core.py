@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 from dbs_eeg_sync.plotting import apply_publication_style
 apply_publication_style()
 
+# ---- Additional imports for reproducibility and metadata helpers ----
+from datetime import datetime, timezone
+import json
+import subprocess
+from importlib import metadata as importlib_metadata
+
     
 
 # ---- Small runtime utilities (centralized so other modules can import) ----
@@ -72,6 +78,113 @@ def ensure_matplotlib_headless(headless: bool | None = None) -> bool:
         return False
 
     return False
+
+# ---- Reproducibility helpers (step 10) -------------------------------------
+
+def _collect_versions() -> dict:
+    """Return versions of key runtime packages (only those available)."""
+    pkgs = ("dbs_eeg_sync", "numpy", "scipy", "pandas", "matplotlib", "mne")
+    versions: dict[str, str] = {}
+    for p in pkgs:
+        try:
+            versions[p] = importlib_metadata.version(p)
+        except Exception:
+            # Package not installed or no distribution metadata; skip.
+            continue
+    return versions
+
+def _git_repo_root() -> Path | None:
+    """Best-effort guess of the repository root (two levels above this file)."""
+    try:
+        return Path(__file__).resolve().parent.parent
+    except Exception:
+        return None
+
+def _collect_git_info() -> dict:
+    """Return git metadata if available: commit, branch, dirty, tag (best effort)."""
+    info: dict[str, str | bool] = {}
+    root = _git_repo_root()
+    if root is None:
+        return info
+    try:
+        # Ensure calls are executed inside the repo root
+        def _run(args: list[str]) -> str:
+            return subprocess.check_output(args, cwd=str(root), stderr=subprocess.DEVNULL).decode().strip()
+
+        info["commit"] = _run(["git", "rev-parse", "HEAD"])
+        try:
+            info["branch"] = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+        except Exception:
+            pass
+        try:
+            status = _run(["git", "status", "--porcelain"])
+            info["dirty"] = bool(status)
+        except Exception:
+            pass
+        try:
+            tag = _run(["git", "describe", "--tags", "--always"])
+            info["tag"] = tag
+        except Exception:
+            pass
+    except Exception:
+        # Not a git repo or git missing; return whatever we have.
+        pass
+    return info
+
+def result_to_dict(res: "SyncResult") -> dict:
+    """Serialize SyncResult to a JSON-serializable dict."""
+    return {
+        "sub_id": res.sub_id,
+        "block": res.block,
+        "eeg_file": str(res.eeg_file),
+        "dbs_file": str(res.dbs_file),
+        "eeg_sync_idx": int(res.eeg_sync_idx),
+        "eeg_sync_s": float(res.eeg_sync_s),
+        "dbs_sync_idx": int(res.dbs_sync_idx),
+        "dbs_sync_s": float(res.dbs_sync_s),
+        "eeg_fs": float(res.eeg_fs),
+        "dbs_fs": float(res.dbs_fs),
+        "channel": res.channel,
+        "artifact_kind": res.artifact_kind,
+        "artifact_magnitude": res.artifact_magnitude,
+        "time_range": res.time_range,
+        # Flatten a few frequently-used metadata items for convenience:
+        "artifact_band_hz": res.metadata.get("artifact_band_hz"),
+        "fs": res.metadata.get("fs"),
+        "block_num": res.metadata.get("block_num"),
+    }
+
+def save_run_metadata(
+    res: "SyncResult",
+    output_dir: Path,
+    *,
+    extra: dict | None = None,
+    timestamp: datetime | None = None
+) -> Path:
+    """
+    Save a metadata JSON alongside outputs. Returns the path to the JSON file.
+
+    The JSON contains: run args/indices, sample rates, versions, git info, and
+    any extra caller-provided data (e.g., CLI args).
+    """
+    output_dir = ensure_output_dir(Path(output_dir))
+    ts = (timestamp or datetime.now(timezone.utc)).astimezone().strftime("%Y%m%d_%H%M%S")
+    meta = {
+        **result_to_dict(res),
+        "created_utc": (timestamp or datetime.now(timezone.utc)).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+        "versions": _collect_versions(),
+        "git": _collect_git_info(),
+        "metadata": res.metadata,  # full nested metadata for completeness
+    }
+    if extra:
+        meta["extra"] = extra
+
+    fname = f"{ts}_metadata_{res.sub_id}_{res.block}.json"
+    out_path = output_dir / fname
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+    logger.info("Saved run metadata to %s", out_path)
+    return out_path
 
 # Import existing modules from the legacy 'source' package.
 from source.data_loader import (
@@ -255,6 +368,10 @@ def sync_run(
         },
         "fs": {"eeg": eeg_fs, "dbs": dbs_fs},
         "block_num": int(block_num),
+        # Reproducibility:
+        "created_utc": datetime.now(timezone.utc).replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z"),
+        "versions": _collect_versions(),
+        "git": _collect_git_info(),
     }
     logger.info("Synchronization completed: %s %s", sub_id, block)
 
