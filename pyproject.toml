@@ -1,31 +1,60 @@
 [project]
 name = "dbs-eeg-sync"
 version = "0.1.0"
-description = "Add your description here"
+description = "Synchronize DBS and EEG recordings with optional GUI-assisted alignment and plots."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "matplotlib>=3.10.1",
+    "matplotlib>=3.8",
     "mne>=1.9.0",
-    "numpy>=2.2.2",
-    "pandas>=2.2.3",
-    "pyxdf",
-    "plotly"
+    "numpy>=2.2.0",
+    "pandas>=2.2.0",
+    "pyxdf>=1.16.5",
+    "plotly>=5.22.0",
+    "pyyaml>=6.0.1"
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["source"]
+[project.optional-dependencies]
+gui = [
+    "PyQt6>=6.7; platform_system != 'Linux'",
+    "PyQt6-Qt6>=6.7; platform_system != 'Linux'",
+    "PyQt6-sip>=13.6; platform_system != 'Linux'",
+]
+notebooks = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.29.0",
+    "nbformat>=5.10.0",
+    "nbclient>=0.10.0"
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[project.scripts]
+dbs-eeg-sync = "dbs_eeg_sync.cli:main"
+dbs_eeg_sync = "dbs_eeg_sync.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[project.scripts]
-dbs-eeg-sync = "dbs_eeg_sync.cli:main"   # nice hyphenated command for users
-dbs_eeg_sync = "dbs_eeg_sync.cli:main"   # optional alias
+[tool.hatch.build.targets.wheel]
+packages = ["dbs_eeg_sync"]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["dbs_eeg_sync*", "source*"]
-
-
+[tool.hatch.build]
+include = [
+    "dbs_eeg_sync/**",
+    "README.md",
+    "config/**",
+    "data/**",
+    "tests/**",
+]
+exclude = [
+    "notebooks/**",
+    "outputs/**",
+    "notebooks/outputs/**",
+    "*/__pycache__/**",
+]
