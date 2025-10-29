@@ -1,51 +1,53 @@
-import os
 import mne  
 import json
 import pandas as pd
 import numpy as np
 import pyxdf
+from pathlib import Path
 
+import logging
+logger = logging.getLogger(__name__)
 
-def load_eeg_data(file_path: str):
+def load_eeg_data(file_path: str | Path):
     """
     Loads EEG data from various file formats using MNE.
 
     Args:
-        file_path (str): Path to the EEG file.
+        file_path (str | Path): Path to the EEG file.
 
     Returns:
-        mne.io.Raw | mne.Epochs | mne.Evoked: The loaded EEG data object.
+        tuple[mne.io.BaseRaw, float]: The loaded MNE Raw-like object and its sampling frequency.
     
     Raises:
         FileNotFoundError: If the file does not exist.
         ValueError: If the file format is unsupported.
     """
-    file_path = file_path.strip('\'"')
-    file_path = os.path.normpath(os.path.expanduser(file_path))
+    # Normalize and coerce to Path
+    file_path = Path(str(file_path).strip('\'"')).expanduser().resolve()
     
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
     
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = file_path.suffix.lower()
     
     if ext == ".set":
-        raw = mne.io.read_raw_eeglab(file_path, preload=True)  
+        raw = mne.io.read_raw_eeglab(str(file_path), preload=True)
     elif ext == ".fif":
-        raw = mne.io.read_raw_fif(file_path, preload=True)
+        raw = mne.io.read_raw_fif(str(file_path), preload=True)
     elif ext in [".vhdr", ".eeg", ".vmrk"]:
-        raw = mne.io.read_raw_brainvision(file_path, preload=True)
+        raw = mne.io.read_raw_brainvision(str(file_path), preload=True)
     elif ext == ".edf":
-        raw = mne.io.read_raw_edf(file_path, preload=True)
+        raw = mne.io.read_raw_edf(str(file_path), preload=True)
     elif ext == ".bdf":
-        raw = mne.io.read_raw_bdf(file_path, preload=True)
+        raw = mne.io.read_raw_bdf(str(file_path), preload=True)
     elif ext == ".gdf":
-        raw = mne.io.read_raw_gdf(file_path, preload=True)
+        raw = mne.io.read_raw_gdf(str(file_path), preload=True)
     elif ext == ".cnt":
-        raw = mne.io.read_raw_cnt(file_path, preload=True)
+        raw = mne.io.read_raw_cnt(str(file_path), preload=True)
     elif ext == ".mff":
-        raw = mne.io.read_raw_egi(file_path, preload=True)
+        raw = mne.io.read_raw_egi(str(file_path), preload=True)
     elif ext == ".xdf":
-        streams, _ = pyxdf.load_xdf(file_path)
+        streams, _ = pyxdf.load_xdf(str(file_path))
         eeg_stream = next((s for s in streams if s['info']['type'][0] == 'EEG'), None)
         if eeg_stream is None:
             raise ValueError("No EEG stream found in the .xdf file")
@@ -76,22 +78,16 @@ def load_eeg_data(file_path: str):
             annotations = mne.Annotations(onset=marker_sample_indices / sfreq, duration=durations, description=descriptions)
             raw.set_annotations(annotations)
         else:
-            print("No marker stream found in the .xdf file")
+            logger.warning("No marker stream found in the .xdf file")
             events = None
     else:
         raise ValueError(f"Unsupported file format: {ext}")
     sfreq = raw.info['sfreq']
-    print(f"---\nSuccessfully loaded {file_path}")
+    logger.info("Successfully loaded %s", file_path)
     return raw, sfreq
 
 
-def dbs_artifact_settings():
-    """ 
-    Asks user to input the frequency range and time range for DBS artifact detection.
-    Default: freq 120–130 Hz, time = full available range (None, None).
-    """
-
-# AFTER:
+# AFTER removing earlier stub:
 def dbs_artifact_settings(freq_min: float | None = None,
                           freq_max: float | None = None,
                           tmin: float | None = None,
@@ -139,22 +135,18 @@ def dbs_artifact_settings(freq_min: float | None = None,
     return dbs_freq_min, dbs_freq_max, start_time, end_time
 
 
-def open_json_file(filepath: str) -> dict:
+def open_json_file(filepath: str | Path) -> dict:
     """
     Opens a JSON file and returns its contents as a dictionary.
 
     Args:
-        filepath: Path to the JSON file, accepts both string and Path objects.
+        filepath (str | Path): Path to the JSON file.
 
     Returns:
         dict: Dictionary containing the JSON data.
     """
-    if isinstance(filepath, os.PathLike):
-        filepath = str(filepath)
-
-    filepath = filepath.strip('\'"')
-    filepath = os.path.normpath(os.path.expanduser(filepath))
-    with open(filepath) as jsonfile:
+    p = Path(str(filepath).strip('\'"')).expanduser().resolve()
+    with p.open() as jsonfile:
         data = json.load(jsonfile)
     return data
 
@@ -210,10 +202,8 @@ def read_time_domain_data(json_data: dict, rec_num: int) -> tuple:
     df = pd.DataFrame(json_data["BrainSenseTimeDomain"][rec_num]["TimeDomainData"], columns=["TimeDomainData"])
     df["recording"] = rec_num
     df["SampleRateInHz"] = fs
-    print(f"---\nSuccessfully read DBS recording {rec_num} with sampling frequency {fs} Hz")
-    # print length of signal in seconds and samples
-    print(f"...length of dbs signal in seconds: {len(df)/fs}")
-    print(f"...length of dbs signal in samples: {len(df)}")
+    logger.info("Successfully read DBS recording %d with sampling frequency %.2f Hz", rec_num, fs)
+    logger.debug("Length of DBS signal: %.2fs (%d samples)", len(df)/fs, len(df))
     return df
 
 
@@ -235,12 +225,13 @@ def read_lfp_data(json_data: dict, rec_num: int) -> tuple:
     lfp_data = [sample[lead].get("LFP") for sample in json_data["BrainSenseLfp"][rec_num]["LfpData"]]
     df = pd.DataFrame(lfp_data, columns=["LfpData"])
     df["recording"] = rec_num
-    print(f"---\nSuccessfully read DBS recording {rec_num} with sampling frequency {fs} Hz")
+    logger.info("Successfully read LFP recording %d with sampling frequency %.2f Hz", rec_num, fs)
     return df, fs, lead
 
 
 
 if __name__ == "__main__":
-    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
-    eeg_data = load_eeg_data(file_path)
-    print(eeg_data)
+    test_path = Path("/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set")
+    raw, fs = load_eeg_data(test_path)
+    logger.info("EEG loaded in __main__: fs=%.3f Hz, n_channels=%d, n_times=%d",
+                fs, len(raw.ch_names), raw.n_times)

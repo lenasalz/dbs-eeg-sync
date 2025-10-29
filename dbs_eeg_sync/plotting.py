@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 import os
+import matplotlib as mpl
 
 def _ensure_dir(p: Optional[Path | str]) -> Optional[Path]:
     if p is None:
@@ -32,12 +33,14 @@ def plot_dbs_artifact(
     """Plot the DBS signal with the detected artifact. Saves a PNG if outdir is provided; shows a window only if show=True."""
     import numpy as np
     import matplotlib.pyplot as plt
+    apply_publication_style()
 
     t = np.arange(len(dbs_signal)) / float(dbs_fs)
     fig = plt.figure(figsize=(10, 4))
     ax = fig.add_subplot(111)
-    ax.plot(t, dbs_signal, label="DBS")
-    ax.axvline(peak_idx / float(dbs_fs), linestyle="--", label=f"artifact @ {peak_idx/float(dbs_fs):.2f}s")
+    ax.plot(t, dbs_signal, label="LFP", color=DBS_COLOR)
+    ax.axvline(peak_idx / float(dbs_fs), linestyle="--", color=DBS_COLOR, alpha=0.8,
+               label=f"artifact @ {peak_idx/float(dbs_fs):.2f}s")
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Amplitude")
     ax.legend()
@@ -66,12 +69,14 @@ def plot_eeg_power(
 ) -> None:
     """Plot EEG band power time-course with optional vertical event line. Saves PNG if outdir; show only if show=True."""
     import matplotlib.pyplot as plt
+    apply_publication_style()
 
     fig = plt.figure(figsize=(10, 4))
     ax = fig.add_subplot(111)
-    ax.plot(time_s, power, label=f"Power {channel or ''}")
+    ax.plot(time_s, power, label=f"Power {channel or ''}", color=EEG_COLOR)
     if event_time is not None:
-        ax.axvline(event_time, color="red", linestyle="--", label=f"event @ {event_time:.2f}s")
+        ax.axvline(event_time, color=ACCENT_COLOR, linestyle="--",
+                   label=f"event @ {event_time:.2f}s")
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Band Power")
     ax.legend()
@@ -100,11 +105,12 @@ def plot_eeg_dbs_overlay(
 ) -> None:
     """Plot synchronized EEG and DBS signals overlaid in time. Saves PNG if outdir; show only if show=True."""
     import matplotlib.pyplot as plt
+    apply_publication_style()
 
     fig = plt.figure(figsize=(10, 4))
     ax = fig.add_subplot(111)
-    ax.plot(eeg_t, eeg_y, label="EEG (synced)")
-    ax.plot(dbs_t, dbs_y, label="DBS (synced)", alpha=0.7)
+    ax.plot(eeg_t, eeg_y, label="EEG (synced)", color=EEG_COLOR)
+    ax.plot(dbs_t, dbs_y, label="LFP (synced)", color=DBS_COLOR, alpha=0.85)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Amplitude")
     ax.legend()
@@ -118,3 +124,38 @@ def plot_eeg_dbs_overlay(
     if show:
         plt.show()
     plt.close(fig)
+
+
+# Consistent brand-ish colors
+EEG_COLOR = "#CD5F66"   # red-ish
+DBS_COLOR = "#5794A0"   # turquoise-ish
+ACCENT_COLOR = "#2ca02c"  # green (if ever needed)
+
+def apply_publication_style() -> None:
+    """Set a clean, publication-ready Matplotlib style globally."""
+    mpl.rcParams.update({
+        # sizing
+        "figure.dpi": 150,
+        "savefig.dpi": 300,
+        "figure.autolayout": True,  # like tight_layout
+        "figure.figsize": (10, 3),
+        # fonts
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.labelsize": 10,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "legend.fontsize": 9,
+        # axes
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.grid": True,
+        "grid.alpha": 0.25,
+        "grid.linestyle": "-",
+        # lines
+        "lines.linewidth": 1.0,
+        "lines.antialiased": True,
+        # save
+        "savefig.bbox": "tight",
+        "savefig.transparent": False,
+    })

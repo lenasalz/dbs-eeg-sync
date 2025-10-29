@@ -1,18 +1,18 @@
 # sync_peak_finder.py
 # Functions for finding synchronization peaks in EEG and DBS data.
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 import numpy as np
 import mne
 from scipy.signal import find_peaks, savgol_filter
 from scipy.ndimage import uniform_filter1d
 from datetime import datetime
-import numpy as np
 from typing import Tuple, Optional, List
 
 import sys
 import os
-import inspect
+
+import logging
+logger = logging.getLogger(__name__)
 
 # Add the local `source` directory to the import path
 sys.path.insert(0, os.path.abspath("source"))
@@ -70,7 +70,7 @@ def detect_dbs_sync_artifact(
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = os.path.join(save_dir, f"{dat}_syncDBS_{sub_id}_{block}.png")
         plt.savefig(out_path)
-        print(f"---\nPlot saved to {out_path}")
+        logger.info(f"---\nPlot saved to {out_path}")
     
     if plot:
         plt.show()
@@ -146,13 +146,13 @@ def detect_eeg_sync_artifact(
         freq_high = nyq - 1.0
     # clamp high just below Nyquist to avoid MNE filter errors
     if freq_high >= nyq:
-        print(f"⚠️ freq_high ({freq_high}) ≥ Nyquist ({nyq}); clamping to {nyq - 1.0} Hz")
+        logger.warning("freq_high (%.3f) ≥ Nyquist (%.3f); clamping to %.3f Hz", freq_high, nyq, nyq - 1.0)
         freq_high = nyq - 1.0
     # ensure ordering
     if freq_low >= freq_high:
         # widen minimally to keep a valid passband
         freq_low = max(0.0, freq_high - 1.0)
-        print(f"⚠️ Adjusted freq_low to {freq_low} Hz to keep freq_low < freq_high ({freq_high} Hz)")
+        logger.warning("Adjusted freq_low to %.3f Hz to keep freq_low < freq_high (%.3f Hz)", freq_low, freq_high)
 
     # Determine crop range and global sample offset (robust to None/partial ranges)
     last_time = float(eeg_raw.times[-1])
@@ -170,14 +170,14 @@ def detect_eeg_sync_artifact(
     stop_time = min(last_time, float(stop_time))
     if stop_time <= start_time:
         # Fallback to full range if invalid
-        print(f"⚠️ Invalid time_range ({time_range}); using full range 0–{last_time:.3f}s")
+        logger.warning("Invalid time_range %s; using full range 0–%.3fs", time_range, last_time)
         start_time, stop_time = 0.0, last_time
 
     crop_start_sample = int(round(start_time * eeg_fs))
 
     # Work on a cropped copy for speed, but keep the global offset
     eeg_raw = eeg_raw.copy().crop(tmin=start_time, tmax=stop_time)
-    print(f"EEG data cropped: {start_time:.3f}s → {stop_time:.3f}s (Δ={stop_time - start_time:.1f}s)")
+    logger.info("EEG data cropped: %.3fs → %.3fs (Δ=%.1fs)", start_time, stop_time, stop_time - start_time)
 
     if channel_list is None:
         channel_list = ['Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1', 'O2']
@@ -186,8 +186,8 @@ def detect_eeg_sync_artifact(
     available_channels = eeg_raw.ch_names
     channel_list = [ch for ch in channel_list if ch in available_channels]
     if len(channel_list) == 0:
-        print("⚠️ No valid channels found in the EEG data.")
-        print(f"Available channels: {available_channels}")
+        logger.warning("No valid channels found in the EEG data.")
+        logger.info("Available channels: %s", available_channels)
         return None, None, None, None, None
 
     best_channel = None
@@ -204,13 +204,12 @@ def detect_eeg_sync_artifact(
                 channel=ch
             )
         except Exception as e:
-            print(f"⚠️ Skipping invalid channel: {ch}: {e}")
+            logger.warning("Skipping invalid channel %s: %s", ch, e)
             continue
 
         # Sanity check
         if len(power_time) != len(eeg_power):
-            print(f"⚠️ Power time and eeg power have different lengths for channel {ch}")
-            print(f"Power time length: {len(power_time)} | EEG power length: {len(eeg_power)}")
+            logger.warning("Power time and EEG power length mismatch for channel %s (time=%d, power=%d)", ch, len(power_time), len(eeg_power))
             continue
 
         # --- Robust smoothing: pick a valid Savitzky–Golay window, fallback if needed ---
@@ -236,10 +235,10 @@ def detect_eeg_sync_artifact(
                 smoothed = uniform_filter1d(eeg_power, size=fallback)
             else:
                 smoothed = eeg_power.astype(float)
-            print(f"⚠️ Savitzky–Golay smoothing skipped on channel {ch}: signal too short (n={n}).")
+            logger.warning("Savitzky–Golay smoothing skipped on channel %s: signal too short (n=%d)", ch, n)
         window_size = int(window_size_sec * eeg_fs)
         if 2 * window_size >= len(smoothed):
-            print(f"⚠️ Signal too short for windowed diff on channel {ch}")
+            logger.warning("Signal too short for windowed diff on channel %s", ch)
             continue
 
         # Windowed mean diff across the smoothed signal
@@ -302,8 +301,8 @@ def detect_eeg_sync_artifact(
         top_preview = ", ".join([f"{c}:{m:.3g}" for m, c, _ in _channel_scores[:5]])
         # Only print the heavy hint in interactive mode
         if plot:
-            print(f"Top channels by |Δpower|: {top_preview}")
-            print("Close EEG sync plot to continue")
+            logger.debug("Top channels by |Δpower|: %s", top_preview)
+            logger.info("Close EEG sync plot to continue")
 
     # Plot once for the best channel only
     if plot and best_result is not None and best_power is not None:

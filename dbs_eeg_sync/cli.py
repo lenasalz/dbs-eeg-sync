@@ -1,5 +1,5 @@
 """
-cli.py — Command-Line Interface for EEG–DBS Synchronization
+cli.py — Command-Line Interface for EEG–DBS-LFP Synchronization
 ------------------------------------------------------------
 Implements a fully non-interactive CLI (`dbs-eeg-sync`) for running
 synchronization jobs. Supports single-run and batch modes, configuration via
@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from .core import sync_run
+
+logger = logging.getLogger(__name__)
 
 # ---------- helpers ----------
 
@@ -48,12 +50,31 @@ def _merge_config(defaults: Dict[str, Any], config: Dict[str, Any], flags: Dict[
     return merged
 
 def _configure_logging(verbose: bool, outdir: Optional[Path]) -> None:
-    level = logging.DEBUG if verbose else logging.INFO
+    root_level = logging.INFO
+    pkg_level = logging.DEBUG if verbose else logging.INFO
+
+    fmt = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     handlers = [logging.StreamHandler(sys.stdout)]
     if outdir:
         outdir.mkdir(parents=True, exist_ok=True)
-        handlers.append(logging.FileHandler(outdir / "run.log", mode="a"))
-    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s", handlers=handlers)
+        handlers.append(logging.FileHandler(Path(outdir) / "run.log", mode="a"))
+
+    # Force reconfigure in case something configured logging earlier (e.g., imported libs)
+    logging.basicConfig(level=root_level, format=fmt, handlers=handlers, force=True)
+
+    # Our package should respect --verbose
+    logging.getLogger("dbs_eeg_sync").setLevel(pkg_level)
+
+    # Turn down very chatty libraries that commonly emit DEBUG/INFO noise
+    for noisy_name in (
+        "matplotlib",
+        "matplotlib.font_manager",
+        "numba",
+        "urllib3",
+        "PIL",
+        "mne",
+    ):
+        logging.getLogger(noisy_name).setLevel(logging.WARNING)
 
 def _ensure_headless(headless: bool) -> None:
     if headless or os.environ.get("DISPLAY") is None:
@@ -152,8 +173,19 @@ def _run_one(args: Dict[str, Any]) -> int:
     output_dir = Path(args["output_dir"]) if args.get("output_dir") else Path("outputs")
     plots = bool(args.get("plots"))
     headless = bool(args.get("headless"))
+    use_gui = bool(args.get("gui"))
 
-    _ensure_headless(headless)
+    # Disallow conflicting flags before touching backends
+    if use_gui and headless:
+        logger.error("Cannot combine --gui with --headless. Remove one of the flags.")
+        sys.exit(1)
+
+    # Backend selection: if GUI requested, force an interactive backend and skip headless.
+    if use_gui:
+        os.environ.setdefault("MPLBACKEND", "TkAgg")
+    else:
+        # Configure non-interactive backend if needed (must be before any pyplot import)
+        _ensure_headless(headless)
 
     try:
         res = sync_run(
@@ -162,6 +194,7 @@ def _run_one(args: Dict[str, Any]) -> int:
             eeg_file=eeg_file,
             dbs_file=dbs_file,
             time_range=time_range,
+            use_gui=use_gui,
         )
         # Save metadata always
         meta = _result_to_meta(res)
@@ -193,10 +226,10 @@ def _run_one(args: Dict[str, Any]) -> int:
                 outdir=plots_dir, sub_id=res.sub_id, block=res.block, show=not headless
             )
 
-        logging.info("Completed: %s %s", sub_id, block)
+        logger.info("Completed: %s %s", sub_id, block)
         return 0
     except Exception as e:
-        logging.exception("Job failed: %s %s (%s)", sub_id, block, e)
+        logger.exception("Job failed: %s %s (%s)", sub_id, block, e)
         return 1
 
         
@@ -220,6 +253,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--config", type=Path, help="Path to JSON or YAML config file")
     p.add_argument("--manifest", type=Path, help="CSV with columns: sub_id,block,eeg_file,dbs_file,start_sec,end_sec")
     p.add_argument("--test", action="store_true", help="Use bundled example data under ./data")
+    p.add_argument("--gui", action="store_true", help="Enable manual GUI selection for synchronization (requires display; default off).")
     return p
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -252,6 +286,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "headless": ns.headless,
         "force": ns.force,
         "verbose": ns.verbose,
+        "gui": ns.gui,
         "test": ns.test,
     }
 
@@ -271,7 +306,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if ns.manifest:
         manifest = ns.manifest
         if not manifest.exists():
-            logging.error("Manifest not found: %s", manifest)
+            logger.error("Manifest not found: %s", manifest)
             return 2
         failures = 0
         with manifest.open() as f:
