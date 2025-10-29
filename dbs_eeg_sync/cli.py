@@ -269,6 +269,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--manifest", type=Path, help="CSV with columns: sub_id,block,eeg_file,dbs_file,start_sec,end_sec")
     p.add_argument("--test", action="store_true", help="Use bundled example data under ./data")
     p.add_argument("--gui", action="store_true", help="Enable manual GUI selection for synchronization (requires display; default off).")
+    p.add_argument("--no-crop", action="store_true", help="Disable automatic trimming to a common window.")
     return p
 
 def main(argv: Optional[list[str]] = None) -> int:

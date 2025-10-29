@@ -143,7 +143,7 @@ synchronizer.py	Core signal alignment and resampling logic (no I/O).
 data_loader.py	EEG and DBS data import helpers (EEGLAB .set, JSON).
 sync_artefact_finder.py	Artifact detection in EEG and DBS data.
 
-
+Example Jupyter notebooks are available in the repository but not included in the installable package”
 ⸻
 
 📘 Citation

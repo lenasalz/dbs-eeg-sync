@@ -1,135 +1,172 @@
-"""
-synchronizer.py — Core Synchronization and Resampling Logic
-------------------------------------------------------------
-Contains computational routines for aligning EEG and DBS-LFP signals in time
-and frequency domains. Provides `cut_data_at_sync` and `synchronize_data`
-functions that operate deterministically without GUI or user input.
-"""
+# dbs_eeg_sync/synchronizer.py
 
 from __future__ import annotations
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Optional
+import logging
 from pathlib import Path
+import os
 
 import numpy as np
 import pandas as pd
 
-import logging
-logger = logging.getLogger(__name__)
+import matplotlib.pyplot as plt
+from scipy.signal import resample as sp_resample
+
+# mne is an optional heavy dep but required for Raw handling here
+import mne
 
 from dbs_eeg_sync.plotting import apply_publication_style, EEG_COLOR, DBS_COLOR
-import matplotlib.pyplot as plt
-import os
+
+logger = logging.getLogger(__name__)
+
 
 def cut_data_at_sync(
-    eeg_data: Any,
-    dbs_df: "pd.DataFrame",
+    eeg_raw: mne.io.BaseRaw,
+    dbs_df: pd.DataFrame,
     dbs_sync_idx: int,
     eeg_sync_idx: int,
-) -> Tuple[Any, Dict[str, Any]]:
+) -> Tuple[mne.io.BaseRaw, pd.DataFrame]:
     """
-    Return cropped EEG and DBS-LFP segments aligned at detected sync peaks.
-
-    Notes:
-        - This implementation is deliberately conservative/non-destructive for now:
-          it returns the EEG object unchanged and passes back the DBS-LFP signal + fs
-          in a small dict. This avoids interactive choices and plotting.
-        - Later, you can refine this to actually crop to windows around the peaks
-          if desired. The core code and plotting code do not rely on cropping yet.
+    Crop EEG and DBS from their respective sync indices onward.
 
     Args:
-        eeg_data: MNE Raw/Array-like EEG object with `.times` and `.get_data()`
-        dbs_df:   DataFrame with columns ['TimeDomainData', 'SampleRateInHz']
-        dbs_sync_idx: index of the DBS-LFP sync artifact (samples)
-        eeg_sync_idx: index of the EEG sync artifact (samples)
+        eeg_raw: mne Raw (or BaseRaw) object.
+        dbs_df:  Pandas DataFrame with columns ["TimeDomainData", "SampleRateInHz"].
+                 Assumed single, continuous DBS trace (1D).
+        dbs_sync_idx: index (in DBS samples) at which the DBS sync artifact occurs.
+        eeg_sync_idx: index (in EEG samples) at which the EEG sync artifact occurs.
 
     Returns:
-        Tuple[cropped_eeg, cropped_dbs_info]
-            cropped_eeg: the EEG object (unchanged pass-through)
-            cropped_dbs_info: {"data": np.ndarray, "fs": float}
+        (cropped_eeg_raw, cropped_dbs_df)
     """
-    logger.debug("cut_data_at_sync called: dbs_sync_idx=%d, eeg_sync_idx=%d", dbs_sync_idx, eeg_sync_idx)
-    # Pass-through EEG (no destructive cropping yet)
-    cropped_eeg = eeg_data
+    # --- Validate inputs
+    if not isinstance(eeg_raw, mne.io.BaseRaw):
+        raise TypeError("eeg_raw must be an mne.io.BaseRaw (e.g., Raw).")
+    if not isinstance(dbs_df, pd.DataFrame):
+        raise TypeError("dbs_df must be a pandas.DataFrame.")
+    for col in ("TimeDomainData", "SampleRateInHz"):
+        if col not in dbs_df.columns:
+            raise ValueError(f"dbs_df must contain column '{col}'.")
 
-    # Extract DBS-LFP signal + fs from the provided dataframe
-    dbs_signal = dbs_df["TimeDomainData"].to_numpy()
+    eeg_fs = float(eeg_raw.info["sfreq"])
     dbs_fs = float(dbs_df["SampleRateInHz"].iloc[0])
-    logger.info("Extracted DBS-LFP segment: %d samples at %.2f Hz", len(dbs_signal), dbs_fs)
-    cropped_dbs = {"data": dbs_signal, "fs": dbs_fs}
 
+    # --- Bounds checks
+    n_eeg = eeg_raw.n_times  # samples
+    n_dbs = len(dbs_df["TimeDomainData"])
+    if not (0 <= eeg_sync_idx <= n_eeg):
+        raise ValueError(f"eeg_sync_idx {eeg_sync_idx} out of range [0, {n_eeg}].")
+    if not (0 <= dbs_sync_idx <= n_dbs):
+        raise ValueError(f"dbs_sync_idx {dbs_sync_idx} out of range [0, {n_dbs}].")
+
+    # --- Crop EEG from eeg_sync_idx onward (convert samples -> seconds)
+    tmin_sec = eeg_sync_idx / eeg_fs
+    cropped_eeg = eeg_raw.copy().crop(tmin=tmin_sec)
+
+    # --- Crop DBS from dbs_sync_idx onward
+    cropped_dbs = dbs_df.iloc[dbs_sync_idx:].reset_index(drop=True).copy()
+
+    logger.info(
+        "Cropped at sync: EEG t>=%.3fs (from %d/%d samples), DBS i>=%d/%d samples.",
+        tmin_sec, eeg_sync_idx, n_eeg, dbs_sync_idx, n_dbs
+    )
     return cropped_eeg, cropped_dbs
 
 
 def synchronize_data(
-    cropped_eeg: Any,
-    cropped_dbs: Dict[str, Any],
-    resample_data: bool = False,
-    save_dir: Optional[str] = None,
+    cropped_eeg: mne.io.BaseRaw,
+    cropped_dbs: pd.DataFrame,
+    resample_data: bool = True,
+    save_dir: Optional[str] = "outputs/plots",
     sub_id: Optional[str] = None,
     block: Optional[str] = None,
-    plot: bool = False,
-):
+) -> Tuple[mne.io.BaseRaw, pd.DataFrame]:
     """
-    Produce synchronized outputs from cropped EEG and DBS-LFP without any interactive behavior.
-
-    Design:
-        - Non-interactive, headless. No figures, no prompts.
-        - Returns objects suitable for downstream saving/plotting:
-            * EEG: the (optionally resampled) EEG object
-            * DBS-LFP: a pandas.DataFrame with 'TimeDomainData' and 'SampleRateInHz'
-        - For now, resampling is disabled by default to avoid extra deps.
+    Optionally resample EEG & DBS to a common (lower) sampling rate (deterministic, non-interactive).
+    Also saves a clean overlay plot if save_dir is provided.
 
     Args:
-        cropped_eeg: EEG object (MNE-like) obtained from cut_data_at_sync
-        cropped_dbs: dict with keys {"data": np.ndarray, "fs": float}
-        resample_data: if True, resample both to a common (lower) fs (not used by default)
-        save_dir, sub_id, block, plot: accepted for compatibility; ignored here
+        cropped_eeg: mne Raw after cropping at sync.
+        cropped_dbs: DataFrame with ["TimeDomainData", "SampleRateInHz"] after cropping.
+        resample_data: If True, resample both to min(eeg_fs, dbs_fs).
+        save_dir: If not None, save overlay figure into this directory.
+        sub_id, block: Used for figure naming.
 
     Returns:
-        Tuple[Any, pd.DataFrame]: (synchronized_eeg, synchronized_dbs_df)
+        (eeg_out, dbs_out)
+            eeg_out: possibly resampled Raw
+            dbs_out: DataFrame with resampled "TimeDomainData" and updated "SampleRateInHz"
     """
-    logger.debug("synchronize_data called: resample_data=%s, sub_id=%s, block=%s", resample_data, sub_id, block)
-    apply_publication_style()
-    # Pass-through (no resampling) to keep behavior deterministic for tests
-    eeg_out = cropped_eeg
+    # --- Validate
+    if not isinstance(cropped_eeg, mne.io.BaseRaw):
+        raise TypeError("cropped_eeg must be an mne.io.BaseRaw.")
+    if not isinstance(cropped_dbs, pd.DataFrame):
+        raise TypeError("cropped_dbs must be a pandas.DataFrame.")
+    for col in ("TimeDomainData", "SampleRateInHz"):
+        if col not in cropped_dbs.columns:
+            raise ValueError(f"cropped_dbs must contain column '{col}'.")
 
-    dbs_signal = np.asarray(cropped_dbs["data"])
-    dbs_fs = float(cropped_dbs["fs"])
-    dbs_out = pd.DataFrame(
-        {"TimeDomainData": dbs_signal, "SampleRateInHz": dbs_fs}
+    eeg_fs = float(cropped_eeg.info["sfreq"])
+    dbs_fs = float(cropped_dbs["SampleRateInHz"].iloc[0])
+    dbs_signal = np.asarray(cropped_dbs["TimeDomainData"].values, dtype=float)
+
+    target_fs = min(eeg_fs, dbs_fs)
+
+    # --- Resample (if requested)
+    if resample_data:
+        eeg_out = cropped_eeg.copy()
+        if eeg_fs != target_fs:
+            eeg_out.resample(sfreq=target_fs)
+
+        if dbs_fs != target_fs:
+            new_len = int(round(len(dbs_signal) * (target_fs / dbs_fs)))
+            dbs_signal_rs = sp_resample(dbs_signal, new_len)
+            dbs_out = pd.DataFrame(
+                {"TimeDomainData": dbs_signal_rs, "SampleRateInHz": target_fs}
+            )
+        else:
+            dbs_out = pd.DataFrame(
+                {"TimeDomainData": dbs_signal, "SampleRateInHz": dbs_fs}
+            )
+    else:
+        eeg_out = cropped_eeg
+        dbs_out = pd.DataFrame(
+            {"TimeDomainData": dbs_signal, "SampleRateInHz": dbs_fs}
+        )
+
+    logger.info(
+        "Synchronization (resample=%s): EEG fs=%.3f→%.3f, DBS fs=%.3f→%.3f.",
+        resample_data,
+        eeg_fs, float(eeg_out.info['sfreq']),
+        dbs_fs, float(dbs_out['SampleRateInHz'].iloc[0]),
     )
 
-    if plot:
-        # Generate output directory
-        if save_dir is None:
-            save_dir = "outputs/plots"
-        os.makedirs(save_dir, exist_ok=True)
+    # --- Optional figure
+    if save_dir:
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+        apply_publication_style()
 
-        eeg = cropped_eeg
-        try:
-            eeg_t = eeg.times
-            eeg_data = eeg.get_data()[0]
-            eeg_fs = float(eeg.info.get("sfreq", 0))
-        except Exception:
-            eeg_t = np.arange(len(cropped_dbs["data"])) / float(cropped_dbs["fs"])
-            eeg_data = np.asarray(cropped_dbs["data"])
-            eeg_fs = float(cropped_dbs["fs"])
+        # Time vectors
+        eeg_data = eeg_out.get_data()[0]  # first channel for a simple overlay
+        fs_eeg = float(eeg_out.info["sfreq"])
+        t_eeg = np.arange(eeg_data.size) / fs_eeg
 
-        dbs_signal = np.asarray(cropped_dbs["data"])
-        dbs_fs = float(cropped_dbs["fs"])
-        dbs_t = np.arange(len(dbs_signal)) / dbs_fs
+        dbs_sig = dbs_out["TimeDomainData"].to_numpy()
+        fs_dbs = float(dbs_out["SampleRateInHz"].iloc[0])
+        t_dbs = np.arange(dbs_sig.size) / fs_dbs
 
-        # Plot overlay
         fig, ax = plt.subplots(figsize=(10, 3))
-        ax.plot(eeg_t, eeg_data, color=EEG_COLOR, label="EEG", linewidth=1.2)
-        ax.plot(dbs_t, dbs_signal, color=DBS_COLOR, label="DBS-LFP", linewidth=1.2, alpha=0.9)
+        ax.plot(t_eeg, eeg_data, label="EEG", color=EEG_COLOR, linewidth=1.2)
+        ax.plot(t_dbs, dbs_sig, label="DBS-LFP", color=DBS_COLOR, linewidth=1.2, alpha=0.9)
         ax.set_xlabel("Time [s]")
         ax.set_ylabel("Amplitude")
         ax.legend(loc="upper right", frameon=False)
-        ax.set_title(f"EEG–DBS-LFP Synchronization: {sub_id or ''} {block or ''}".strip())
-        plot_name = f"{sub_id or 'sub'}_{block or 'block'}_overlay.png"
-        fig.savefig(os.path.join(save_dir, plot_name), dpi=300)
-        plt.close(fig)
+        ax.set_title(f"EEG–DBS Synchronization: {sub_id or ''} {block or ''}".strip())
 
-    logger.info("Synchronization complete (EEG len=%d, DBS-LFP len=%d)", len(cropped_dbs['data']), len(dbs_out))
+        fname = f"{sub_id or 'sub'}_{block or 'block'}_overlay.png"
+        out_path = Path(save_dir) / fname
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        logger.info("Saved overlay plot: %s", out_path)
+
     return eeg_out, dbs_out

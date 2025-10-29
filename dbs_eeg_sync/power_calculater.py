@@ -1,3 +1,10 @@
+"""
+power_calculater.py — Sample-wise EEG Power Calculation
+------------------------------------------------------
+Contains routines for computing sample-wise band power of EEG data.
+"""
+
+from __future__ import annotations
 import mne  
 import numpy as np
 from typing import Tuple, Optional
@@ -76,7 +83,7 @@ def compute_samplewise_eeg_power(
 
 
 
-from source.data_loader import load_eeg_data
+from dbs_eeg_sync.data_loader import load_eeg_data
 
 if __name__ == '__main__':
     file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"

@@ -212,3 +212,16 @@ notebooks/outputs/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+
+# Project outputs
+outputs/
+notebooks/outputs/
+*.log
+
+# Env
+.venv/
+.env

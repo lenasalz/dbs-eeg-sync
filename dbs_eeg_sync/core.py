@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 from dbs_eeg_sync.plotting import apply_publication_style
 apply_publication_style()
 
+from dbs_eeg_sync.data_loader import load_eeg_data, open_json_file, select_recording, read_time_domain_data, dbs_artifact_settings
+from dbs_eeg_sync.sync_artefact_finder import detect_eeg_sync_artifact, detect_dbs_sync_artifact
+from dbs_eeg_sync.synchronizer import cut_data_at_sync, synchronize_data
+
 # ---- Additional imports for reproducibility and metadata helpers ----
 from datetime import datetime, timezone
 import json
@@ -186,17 +190,6 @@ def save_run_metadata(
     logger.info("Saved run metadata to %s", out_path)
     return out_path
 
-# Import existing modules from the legacy 'source' package.
-from source.data_loader import (
-    load_eeg_data, dbs_artifact_settings, open_json_file,
-    select_recording, read_time_domain_data
-)
-from source.sync_artefact_finder import (
-    detect_dbs_sync_artifact, detect_eeg_sync_artifact
-)
-from source.synchronizer import (
-    cut_data_at_sync, synchronize_data
-)
 
 @dataclass(frozen=True)
 class SyncResult:
@@ -262,7 +255,8 @@ def sync_run(
     block_index: int | None = 0,                 # default 0 to avoid prompt
     artifact_band: tuple[float, float] | None = (120.0, 130.0),  # avoid prompt
     use_gui: bool = False,                       # optional manual selection
-    headless: bool | None = None,                # force Agg when None auto-detects
+    headless: bool | None = None,    
+    auto_crop: bool = True,            # force Agg when None auto-detects
 ) -> SyncResult:
     """
     Run end-to-end synchronization without any I/O side effects (no prints, no GUI, no plots, no saving).
@@ -348,13 +342,19 @@ def sync_run(
         logger.info("DBS sync pick: idx=%d, t=%.3fs", int(dbs_sync_idx), float(dbs_sync_s))
 
     # Crop and synchronize (no plots in core)
-    cropped_eeg, cropped_dbs = cut_data_at_sync(
-        eeg_data, dbs_df, dbs_sync_idx, eeg_sync_idx
-    )
-    synchronized_eeg, synchronized_dbs = synchronize_data(
-        cropped_eeg, cropped_dbs, resample_data=False,
-        save_dir=None, sub_id=sub_id, block=block, plot=False
-    )
+    if auto_crop:
+        cropped_eeg, cropped_dbs = cut_data_at_sync(
+            eeg_data, dbs_df, dbs_sync_idx, eeg_sync_idx
+        )
+        synchronized_eeg, synchronized_dbs = synchronize_data(
+            cropped_eeg, cropped_dbs, resample_data=False,
+            save_dir=None, sub_id=sub_id, block=block
+        )
+        logger.info("Signals cropped and synchronized to common window.")
+    else:
+        cropped_eeg, cropped_dbs = eeg_data, dbs_df
+        synchronized_eeg, synchronized_dbs = eeg_data, dbs_df
+        logger.info("auto_crop=False: returning raw data with sync indices only.")
 
     # Prepare metadata (for provenance; callers may persist this)
     meta: Dict = {

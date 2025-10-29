@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Tuple
 
-from source.power_calculater import compute_samplewise_eeg_power
+from dbs_eeg_sync.power_calculater import compute_samplewise_eeg_power
 from dbs_eeg_sync.plotting import apply_publication_style, EEG_COLOR, DBS_COLOR
 
 

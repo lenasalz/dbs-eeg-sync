@@ -14,9 +14,7 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 
-# Add the local `source` directory to the import path
-sys.path.insert(0, os.path.abspath("source"))
-from source.power_calculater import compute_samplewise_eeg_power
+from dbs_eeg_sync.power_calculater import compute_samplewise_eeg_power
 
 
 def detect_dbs_sync_artifact(

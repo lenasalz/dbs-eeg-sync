@@ -87,7 +87,6 @@ def load_eeg_data(file_path: str | Path):
     return raw, sfreq
 
 
-# AFTER removing earlier stub:
 def dbs_artifact_settings(freq_min: float | None = None,
                           freq_max: float | None = None,
                           tmin: float | None = None,
