@@ -9,18 +9,21 @@ This repository provides open, reproducible code for synchronizing EEG recording
 The repository is organized as a modular Python package, dbs_eeg_sync, with clear separation between computation, visualization, and user interaction layers.
 
 .
-├── dbs_eeg_sync
-│   ├── core.py              # orchestration logic (sync_run)
-│   ├── plotting.py          # plotting utilities (headless support)
-│   ├── cli.py               # non-interactive command-line interface
-│   └── __init__.py
-├── source
-│   ├── synchronizer.py      # computational core (alignment, resampling)
-│   ├── data_loader.py       # EEG/DBS data import utilities
-│   └── sync_artefact_finder.py  # artifact detection routines
-├── config                   # JSON/YAML configuration files
-├── data                     # example EEG/DBS input data
-└── outputs                  # generated plots and metadata
+├── dbs_eeg_sync/
+│   ├── core.py                    # orchestration logic (sync_run)
+│   ├── synchronizer.py            # signal alignment and resampling
+│   ├── sync_artifact_finder.py    # artifact detection routines
+│   ├── data_loader.py             # EEG/DBS data import utilities
+│   ├── power_calculator.py        # band-power computation
+│   ├── plotting.py                # plotting utilities (headless support)
+│   ├── cli.py                     # command-line interface
+│   ├── gui.py                     # optional manual sync GUI
+│   └── __init__.py                # public API exports
+├── tests/                         # unit tests
+├── config/                        # JSON/YAML configuration files
+├── data/                          # example EEG/DBS input data
+├── notebooks/                     # Jupyter notebooks (examples)
+└── outputs/                       # generated plots and metadata
 
 
 ⸻
@@ -29,7 +32,7 @@ The repository is organized as a modular Python package, dbs_eeg_sync, with clea
 
 1. Clone the repository
 
-git clone https://github.com/<your-org>/dbs-eeg-sync.git
+git clone https://github.com/lenasalz/dbs-eeg-sync
 cd dbs-eeg-sync
 
 2. Set up your environment
@@ -135,27 +138,52 @@ outputs/
 
 🧩 Module Overview
 
-Module	Description
-core.py	Orchestrates full synchronization (non-interactive) via sync_run.
-plotting.py	Headless plotting utilities for DBS artifacts, EEG power, and overlays.
-cli.py	Command-line interface for batch and config-driven execution.
-synchronizer.py	Core signal alignment and resampling logic (no I/O).
-data_loader.py	EEG and DBS data import helpers (EEGLAB .set, JSON).
-sync_artefact_finder.py	Artifact detection in EEG and DBS data.
+| Module | Description |
+|--------|-------------|
+| `core.py` | Orchestrates full synchronization (non-interactive) via `sync_run`. |
+| `synchronizer.py` | Core signal alignment and resampling logic (no I/O). |
+| `sync_artifact_finder.py` | Artifact detection in EEG and DBS data. |
+| `data_loader.py` | EEG and DBS data import helpers (EEGLAB .set, JSON, and more). |
+| `power_calculator.py` | Sample-wise band-power calculation for artifact detection. |
+| `plotting.py` | Headless plotting utilities for DBS artifacts, EEG power, and overlays. |
+| `cli.py` | Command-line interface for batch and config-driven execution. |
+| `gui.py` | Optional manual synchronization GUI (requires PyQt). |
 
-Example Jupyter notebooks are available in the repository but not included in the installable package”
+Example Jupyter notebooks are available in the `notebooks/` directory but not included in the installable package.
 ⸻
 
 📘 Citation
 
-If you use this code, please cite our upcoming Brain Stimulation manuscript:
+If you use this software in your research, please cite:
 
-Salzmann L, et al. (2025). Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research. Brain Stimulation.
+```bibtex
+@article{salzmann2025eegdbs,
+  title={Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research},
+  author={Salzmann, Lena and others},
+  journal={},
+  year={2025},
+  note={Manuscript in review}
+}
+```
+
+For more citation formats, see [`CITATION.cff`](CITATION.cff).
+
+⸻
+
+🤝 Contributing
+
+We welcome contributions! Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on:
+- Reporting bugs and requesting features
+- Setting up a development environment
+- Code style and testing requirements
+- Submitting pull requests
 
 ⸻
 
 🔬 License and Acknowledgements
 
-This code is distributed under an open-source license (to be defined). Developed at the ETH Zurich, Department for Health Science and Technology.
+This code is distributed under the [BSD 3-Clause License](LICENSE). 
 
-Contact: [Your email here]
+Developed at **ETH Zurich**, Department of Health Sciences and Technology, Rehabilitation Engineering Laboratory.
+
+**Contact:** [lena.salzmann@hest.ethz.ch](mailto:lena.salzmann@hest.ethz.ch)

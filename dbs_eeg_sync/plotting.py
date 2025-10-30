@@ -10,7 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
-import os
 import matplotlib as mpl
 
 def _ensure_dir(p: Optional[Path | str]) -> Optional[Path]:

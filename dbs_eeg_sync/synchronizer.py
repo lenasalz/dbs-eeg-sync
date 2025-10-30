@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Tuple, Optional
 import logging
 from pathlib import Path
-import os
 
 import numpy as np
 import pandas as pd
@@ -49,7 +48,7 @@ def cut_data_at_sync(
             raise ValueError(f"dbs_df must contain column '{col}'.")
 
     eeg_fs = float(eeg_raw.info["sfreq"])
-    dbs_fs = float(dbs_df["SampleRateInHz"].iloc[0])
+    # dbs_fs is validated implicitly by checking dataframe structure
 
     # --- Bounds checks
     n_eeg = eeg_raw.n_times  # samples

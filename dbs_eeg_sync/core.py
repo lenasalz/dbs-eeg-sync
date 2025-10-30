@@ -15,27 +15,21 @@ from typing import Optional, Tuple, Any, Dict
 import os
 
 import logging
-logger = logging.getLogger(__name__)
-
-from dbs_eeg_sync.plotting import apply_publication_style
-apply_publication_style()
-
-from dbs_eeg_sync.data_loader import load_eeg_data, open_json_file, select_recording, read_time_domain_data, dbs_artifact_settings
-from dbs_eeg_sync.sync_artefact_finder import detect_eeg_sync_artifact, detect_dbs_sync_artifact
-from dbs_eeg_sync.synchronizer import cut_data_at_sync, synchronize_data
-
-# ---- Additional imports for reproducibility and metadata helpers ----
-from datetime import datetime, timezone
 import json
 import subprocess
+from datetime import datetime, timezone
 from importlib import metadata as importlib_metadata
 
-    
-
-# ---- Small runtime utilities (centralized so other modules can import) ----
-
-# Optional GUI helper (lazy-imported only when used via use_gui=True)
+from dbs_eeg_sync.plotting import apply_publication_style
+from dbs_eeg_sync.data_loader import load_eeg_data, open_json_file, select_recording, read_time_domain_data, dbs_artifact_settings
+from dbs_eeg_sync.sync_artifact_finder import detect_eeg_sync_artifact, detect_dbs_sync_artifact
+from dbs_eeg_sync.synchronizer import cut_data_at_sync, synchronize_data
 from .gui import manual_select_sync  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+# Apply publication style globally
+apply_publication_style()
 
 def ensure_output_dir(path: Path) -> Path:
     """Create *path* (and parents) if missing and return it.

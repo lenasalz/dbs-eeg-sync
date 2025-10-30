@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Synchronize DBS and EEG recordings with optional GUI-assisted alignment and plots."
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "BSD-3-Clause" }
 dependencies = [
     "matplotlib>=3.8",
     "mne>=1.9.0",

@@ -1,5 +1,5 @@
 """
-power_calculater.py — Sample-wise EEG Power Calculation
+power_calculator.py — Sample-wise EEG Power Calculation
 ------------------------------------------------------
 Contains routines for computing sample-wise band power of EEG data.
 """
@@ -7,9 +7,7 @@ Contains routines for computing sample-wise band power of EEG data.
 from __future__ import annotations
 import mne  
 import numpy as np
-from typing import Tuple, Optional
 from scipy.signal import hilbert
-from scipy.ndimage import uniform_filter1d
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
@@ -19,10 +17,10 @@ def compute_samplewise_eeg_power(
     freq_low: int,
     freq_high: int,
     channel: str = 'POz',
-    smoothing_sec: Optional[float] = 0.5,
+    smoothing_sec: float | None = 0.5,
     smooth_window: int = 301,
     plot: bool = False,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
     """
     Computes sample-wise band power of EEG data in a specified frequency range, with optional smoothing. 
     The sample-wise power is computed by averaging the power of the EEG data in the specified frequency range.
@@ -37,7 +35,7 @@ def compute_samplewise_eeg_power(
         plot (bool): Whether to plot the power trace.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: (power_trace, time_axis)
+        tuple[np.ndarray, np.ndarray]: (power_trace, time_axis)
     """
     
     # Copy, crop, and filter EEG
@@ -51,11 +49,6 @@ def compute_samplewise_eeg_power(
     # Hilbert transform to get analytic signal
     analytic_signal = hilbert(data)
     power_trace = np.abs(analytic_signal) ** 2
-
-    # Optional smoothing
-    # if smoothing_sec and smoothing_sec > 0:
-    #     smoothing_samples = int(smoothing_sec * fs)
-        # power_trace = uniform_filter1d(power_trace, size=smoothing_samples)
     
     # Apply Savitzky-Golay smoothing
     if smooth_window and smooth_window > 1:
@@ -64,7 +57,6 @@ def compute_samplewise_eeg_power(
             smooth_window += 1
         smooth_window = min(smooth_window, len(power_trace) - 1 if len(power_trace) % 2 == 0 else len(power_trace))
         power_trace_smoothed = savgol_filter(power_trace, window_length=smooth_window, polyorder=3)
-
 
     # Time axis
     time_axis = np.arange(len(power_trace)) / fs
@@ -79,19 +71,27 @@ def compute_samplewise_eeg_power(
         plt.tight_layout()
         plt.show()
 
-    return power_trace, time_axis
+    if smooth_window and smooth_window > 1:
+        return power_trace_smoothed, time_axis
+    else:
+        return power_trace, time_axis
 
 
-
-from dbs_eeg_sync.data_loader import load_eeg_data
 
 if __name__ == '__main__':
-    file_path = "/Users/lenasalzmann/dev/dbs-eeg-sync/data/eeg_example.set"
-    eeg_data = load_eeg_data(file_path)
+    from pathlib import Path
+    from dbs_eeg_sync.data_loader import load_eeg_data
+    
+    # Use relative path from repository root
+    file_path = Path(__file__).parent.parent / "data" / "eeg_example.set"
+    eeg_data, fs = load_eeg_data(file_path)
     power, time = compute_samplewise_eeg_power(eeg_data, 8, 12, channel="T8", plot=True)
-    # save power to csv in outputs folder
-    np.savetxt("outputs/outputData/eeg_power.csv", power, delimiter=",")
-    print(power.shape, time.shape)
+    
+    # Save power to csv in outputs folder
+    output_path = Path(__file__).parent.parent / "outputs" / "outputData" / "eeg_power.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    np.savetxt(output_path, power, delimiter=",")
+    print(f"Power shape: {power.shape}, Time shape: {time.shape}")
 
 
     

@@ -1,31 +1,30 @@
-# sync_peak_finder.py
+# sync_artifact_finder.py
 # Functions for finding synchronization peaks in EEG and DBS data.
+from __future__ import annotations
+
 import matplotlib.pyplot as plt
 import numpy as np
 import mne
 from scipy.signal import find_peaks, savgol_filter
 from scipy.ndimage import uniform_filter1d
 from datetime import datetime
-from typing import Tuple, Optional, List
-
-import sys
 import os
-
 import logging
-logger = logging.getLogger(__name__)
 
-from dbs_eeg_sync.power_calculater import compute_samplewise_eeg_power
+from dbs_eeg_sync.power_calculator import compute_samplewise_eeg_power
+
+logger = logging.getLogger(__name__)
 
 
 def detect_dbs_sync_artifact(
     dbs_signal,
     dbs_fs,
-    save_dir: Optional[str] = None,
-    sub_id: Optional[str] = None,
-    block: Optional[str] = None,
+    save_dir: str | None = None,
+    sub_id: str | None = None,
+    block: str | None = None,
     plot: bool = False,
     **kwargs,
-) -> Tuple[int, float]:
+) -> tuple[int, float]:
     """
     Finds the highest positive peak in DBS data.
 
@@ -38,7 +37,7 @@ def detect_dbs_sync_artifact(
         plot (bool): If True, call plt.show() (interactive). If False, do not show (headless-friendly).
 
     Returns:
-        Tuple[int, float]: (dbs_peak_index_fs, dbs_peak_index_s)
+        tuple[int, float]: (dbs_peak_index_fs, dbs_peak_index_s)
     """
     # Compute time axis
     dbs_time_axis = np.arange(len(dbs_signal)) / dbs_fs
@@ -68,7 +67,7 @@ def detect_dbs_sync_artifact(
         dat = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_path = os.path.join(save_dir, f"{dat}_syncDBS_{sub_id}_{block}.png")
         plt.savefig(out_path)
-        logger.info(f"---\nPlot saved to {out_path}")
+        logger.info(f"Plot saved to {out_path}")
     
     if plot:
         plt.show()
@@ -82,21 +81,21 @@ def detect_eeg_sync_artifact(
     eeg_raw: mne.io.Raw,
     freq_low: float,
     freq_high: float,
-    time_range: Optional[Tuple[float, float]] = None,
-    eeg_fs: Optional[int] = None,
-    channel_list: Optional[List[str]] = None,
+    time_range: tuple[float, float] | None = None,
+    eeg_fs: int | None = None,
+    channel_list: list[str] | None = None,
     smooth_window: int = 301,
     window_size_sec: int = 2,
     plot: bool = False,
-    save_dir: Optional[str] = "outputs/plots",
-    sub_id: Optional[str] = None,
-    block: Optional[str] = None
-) -> Tuple[
-    Optional[str],
-    Optional[int],
-    Optional[float],
-    Optional[dict],
-    Optional[np.ndarray],
+    save_dir: str | None = "outputs/plots",
+    sub_id: str | None = None,
+    block: str | None = None
+) -> tuple[
+    str | None,
+    int | None,
+    float | None,
+    dict | None,
+    np.ndarray | None,
 ]:
     """
     Detects the sync artifact from the EEG data.
@@ -144,13 +143,13 @@ def detect_eeg_sync_artifact(
         freq_high = nyq - 1.0
     # clamp high just below Nyquist to avoid MNE filter errors
     if freq_high >= nyq:
-        logger.warning("freq_high (%.3f) ≥ Nyquist (%.3f); clamping to %.3f Hz", freq_high, nyq, nyq - 1.0)
+        logger.warning(f"freq_high ({freq_high:.3f}) ≥ Nyquist ({nyq:.3f}); clamping to {nyq - 1.0:.3f} Hz")
         freq_high = nyq - 1.0
     # ensure ordering
     if freq_low >= freq_high:
         # widen minimally to keep a valid passband
         freq_low = max(0.0, freq_high - 1.0)
-        logger.warning("Adjusted freq_low to %.3f Hz to keep freq_low < freq_high (%.3f Hz)", freq_low, freq_high)
+        logger.warning(f"Adjusted freq_low to {freq_low:.3f} Hz to keep freq_low < freq_high ({freq_high:.3f} Hz)")
 
     # Determine crop range and global sample offset (robust to None/partial ranges)
     last_time = float(eeg_raw.times[-1])
@@ -168,14 +167,14 @@ def detect_eeg_sync_artifact(
     stop_time = min(last_time, float(stop_time))
     if stop_time <= start_time:
         # Fallback to full range if invalid
-        logger.warning("Invalid time_range %s; using full range 0–%.3fs", time_range, last_time)
+        logger.warning(f"Invalid time_range {time_range}; using full range 0–{last_time:.3f}s")
         start_time, stop_time = 0.0, last_time
 
     crop_start_sample = int(round(start_time * eeg_fs))
 
     # Work on a cropped copy for speed, but keep the global offset
     eeg_raw = eeg_raw.copy().crop(tmin=start_time, tmax=stop_time)
-    logger.info("EEG data cropped: %.3fs → %.3fs (Δ=%.1fs)", start_time, stop_time, stop_time - start_time)
+    logger.info(f"EEG data cropped: {start_time:.3f}s → {stop_time:.3f}s (Δ={stop_time - start_time:.1f}s)")
 
     if channel_list is None:
         channel_list = ['Pz', 'Oz', 'Fz', 'Cz', 'T7', 'T8', 'O1', 'O2']
@@ -185,7 +184,7 @@ def detect_eeg_sync_artifact(
     channel_list = [ch for ch in channel_list if ch in available_channels]
     if len(channel_list) == 0:
         logger.warning("No valid channels found in the EEG data.")
-        logger.info("Available channels: %s", available_channels)
+        logger.info(f"Available channels: {available_channels}")
         return None, None, None, None, None
 
     best_channel = None
@@ -202,12 +201,12 @@ def detect_eeg_sync_artifact(
                 channel=ch
             )
         except Exception as e:
-            logger.warning("Skipping invalid channel %s: %s", ch, e)
+            logger.warning(f"Skipping invalid channel {ch}: {e}")
             continue
 
         # Sanity check
         if len(power_time) != len(eeg_power):
-            logger.warning("Power time and EEG power length mismatch for channel %s (time=%d, power=%d)", ch, len(power_time), len(eeg_power))
+            logger.warning(f"Power time and EEG power length mismatch for channel {ch} (time={len(power_time)}, power={len(eeg_power)})")
             continue
 
         # --- Robust smoothing: pick a valid Savitzky–Golay window, fallback if needed ---
@@ -233,10 +232,10 @@ def detect_eeg_sync_artifact(
                 smoothed = uniform_filter1d(eeg_power, size=fallback)
             else:
                 smoothed = eeg_power.astype(float)
-            logger.warning("Savitzky–Golay smoothing skipped on channel %s: signal too short (n=%d)", ch, n)
+            logger.warning(f"Savitzky–Golay smoothing skipped on channel {ch}: signal too short (n={n})")
         window_size = int(window_size_sec * eeg_fs)
         if 2 * window_size >= len(smoothed):
-            logger.warning("Signal too short for windowed diff on channel %s", ch)
+            logger.warning(f"Signal too short for windowed diff on channel {ch}")
             continue
 
         # Windowed mean diff across the smoothed signal
@@ -299,7 +298,7 @@ def detect_eeg_sync_artifact(
         top_preview = ", ".join([f"{c}:{m:.3g}" for m, c, _ in _channel_scores[:5]])
         # Only print the heavy hint in interactive mode
         if plot:
-            logger.debug("Top channels by |Δpower|: %s", top_preview)
+            logger.debug(f"Top channels by |Δpower|: {top_preview}")
             logger.info("Close EEG sync plot to continue")
 
     # Plot once for the best channel only
@@ -350,39 +349,3 @@ def detect_eeg_sync_artifact(
         best_power,                    # cropped band power for best channel
     )
 
-
-def confirm_sync_selection(
-    channel: str, 
-    sync_time: float, 
-    result_type: str, 
-    magnitude: float
-) -> bool:
-    """
-    Ask the user to confirm the detected sync point.
-
-    Args:
-        channel (str): The selected EEG channel.
-        sync_time (float): Time of the detected sync point (in seconds).
-        result_type (str): 'drop' or 'spike'.
-        magnitude (float): Magnitude of the change.
-
-    Returns:
-        bool: True if confirmed by user, False if manual selection is preferred.
-    """
-
-    print("\n🔍 Sync Artifact Detected")
-    print("----------------------------------")
-    print(f"  Channel   : {channel}")
-    print(f"  Time      : {sync_time:.2f} s")
-    print(f"  Type      : {result_type}")
-    print(f"  Magnitude : {magnitude:.4f}")
-    
-    while True:
-        user_input = input("\n✅ Use this EEG sync point? (yes/no): ").strip().lower()
-        if user_input in ['y', 'yes']:
-            return True
-        elif user_input in ['n', 'no']:
-            print("🛠️ Switching to manual sync selection...")
-            return False
-        else:
-            print("Please enter 'yes' or 'no'.")
