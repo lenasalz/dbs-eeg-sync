@@ -39,7 +39,7 @@ cd dbs-eeg-sync
 
 ### 2. Install dependencies
 
-**Option A: Using `uv` (Recommended - Fast & Reproducible)**
+**Option A: Using `uv` (Recommended)**
 
 [`uv`](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
 
@@ -99,7 +99,7 @@ dbs-eeg-sync \
   --plots --headless --output-dir outputs
 ```
 
-💡 **Note:** If you installed with `uv sync`, prefix commands with `uv run` or activate the environment first:
+**Note:** If you installed with `uv sync`, prefix commands with `uv run` or activate the environment first:
 ```bash
 source .venv/bin/activate  # Then run dbs-eeg-sync directly
 ```
