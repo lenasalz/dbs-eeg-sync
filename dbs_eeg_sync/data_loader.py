@@ -76,7 +76,7 @@ def load_eeg_data(file_path: str | Path):
             raw.set_annotations(annotations)
         else:
             logger.warning("No marker stream found in the .xdf file")
-y    else:
+    else:
         raise ValueError(f"Unsupported file format: {ext}")
     sfreq = raw.info['sfreq']
     logger.info(f"Successfully loaded {file_path}")

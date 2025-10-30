@@ -5,6 +5,29 @@ description = "Synchronize DBS and EEG recordings with optional GUI-assisted ali
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "BSD-3-Clause" }
+authors = [
+    { name = "Lena Salzmann", email = "lena.salzmann@med.uni-muenchen.de" }
+]
+keywords = [
+    "DBS",
+    "EEG",
+    "synchronization",
+    "neuroscience",
+    "deep brain stimulation",
+    "electroencephalography",
+    "artifact detection"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "matplotlib>=3.8",
     "mne>=1.9.0",
@@ -14,6 +37,11 @@ dependencies = [
     "plotly>=5.22.0",
     "pyyaml>=6.0.1"
 ]
+
+[project.urls]
+Homepage = "https://github.com/neurokidslab/dbs-eeg-sync"
+Repository = "https://github.com/neurokidslab/dbs-eeg-sync"
+Issues = "https://github.com/neurokidslab/dbs-eeg-sync/issues"
 
 [project.optional-dependencies]
 gui = [
@@ -49,13 +77,21 @@ packages = ["dbs_eeg_sync"]
 include = [
     "dbs_eeg_sync/**",
     "README.md",
-    "config/**",
-    "data/**",
-    "tests/**",
+    "LICENSE",
+    "CITATION.cff",
+    "config/*.json",
+    "config/*.yml",
+    "data/*.json",
+    "data/*.set",
 ]
 exclude = [
     "notebooks/**",
     "outputs/**",
-    "notebooks/outputs/**",
+    "outputs_test/**",
     "*/__pycache__/**",
+    "**/*.pyc",
+    "**/__pycache__/**",
+    ".pytest_cache/**",
+    ".ruff_cache/**",
+    "tests/**",
 ]
