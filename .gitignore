@@ -177,11 +177,25 @@ cython_debug/
 # Windows metadata files
 Thumbs.db
 
-# Data (EEG, DBS, and other large datasets)
-data/
-outputs/ 
+# ============================================
+# Project-specific ignores
+# ============================================
 
-# ignore files with the following endings
+# Data files (large EEG/DBS datasets)
+data/
+*.set
+*.edf
+*.bdf
+*.gdf
+
+# Generated outputs
+outputs/
+outputs_test/
+notebooks/outputs/
+test_results.txt
+*.log
+
+# Media files (plots and figures)
 *.pdf
 *.png
 *.jpg
@@ -193,35 +207,17 @@ outputs/
 *.webp
 *.svg
 *.eps
+
+# Data files
 *.xlsx
 *.csv
-*.json
-*.set
-*.edf
-*.bdf
-*.gdf
-*.bdf
-*.bdf
-*.bdf
 
-# Outputs and caches
-outputs/
-notebooks/outputs/
-**/__pycache__/
-*.pyc
-.mypy_cache/
+# JSON files - ignore output JSONs but keep config examples
+outputs/**/*.json
+notebooks/**/*.json
+# Don't ignore config examples (they're needed for documentation)
+
+# Tool caches
 .ruff_cache/
+.pytest_cache/
 .ipynb_checkpoints/
-
-# Python
-__pycache__/
-*.pyc
-
-# Project outputs
-outputs/
-notebooks/outputs/
-*.log
-
-# Env
-.venv/
-.env

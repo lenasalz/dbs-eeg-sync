@@ -4,7 +4,7 @@ This repository provides open, reproducible code for synchronizing EEG recording
 
 ⸻
 
-🧩 Overview
+Overview
 
 The repository is organized as a modular Python package, dbs_eeg_sync, with clear separation between computation, visualization, and user interaction layers.
 
@@ -28,37 +28,68 @@ The repository is organized as a modular Python package, dbs_eeg_sync, with clea
 
 ⸻
 
-⚙️ Installation
+Installation
 
-1. Clone the repository
+### 1. Clone the repository
 
+```bash
 git clone https://github.com/lenasalz/dbs-eeg-sync
 cd dbs-eeg-sync
+```
 
-2. Set up your environment
+### 2. Install dependencies
 
-We recommend using uv for lightweight, reproducible environments:
+**Option A: Using `uv` (Recommended - Fast & Reproducible)**
 
+[`uv`](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
+
+```bash
+# Install uv (one-time setup)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+# or: pip install uv
+
+# Install the package
 uv sync
-uv pip install -e .
+```
+
+**Option B: Using `pip` (Traditional)**
+
+```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install the package
+pip install -e .
+```
+
+**Option C: Using `conda`**
+
+```bash
+conda create -n dbs-eeg-sync python=3.12
+conda activate dbs-eeg-sync
+pip install -e .
+```
 
 
 ⸻
+Running the Synchronization
 
-🧠 Running the Synchronization
+### Quick Test with Example Data
 
-Option 1 — Using Example Data
+```bash
+# If using uv:
+uv run dbs-eeg-sync --test --plots --headless
 
-A minimal test run with example EEG and DBS recordings:
-
+# If using pip/conda (with activated environment):
 dbs-eeg-sync --test --plots --headless
+```
 
-This produces synchronized outputs, metadata JSONs, and headless plots under outputs/.
+This produces synchronized outputs, metadata JSONs, and headless plots under `outputs/`.
 
-Option 2 — Using Your Own Data
+### Using Your Own Data
 
-Provide paths directly:
-
+```bash
 dbs-eeg-sync \
   --sub-id P01 \
   --block baseline \
@@ -66,6 +97,12 @@ dbs-eeg-sync \
   --dbs-file /path/to/dbs.json \
   --time-range 0,120 \
   --plots --headless --output-dir outputs
+```
+
+💡 **Note:** If you installed with `uv sync`, prefix commands with `uv run` or activate the environment first:
+```bash
+source .venv/bin/activate  # Then run dbs-eeg-sync directly
+```
 
 
 ⸻
@@ -104,7 +141,7 @@ headless: true
 
 ⸻
 
-📦 Batch Processing
+Batch Processing
 
 Use a CSV manifest to synchronize multiple subjects automatically:
 
@@ -119,7 +156,7 @@ dbs-eeg-sync --manifest config/manifest.csv --plots --headless
 
 ⸻
 
-🖼 Output
+Output
 	•	Plots: Saved under outputs/plots/
 	•	Metadata: JSON file containing synchronization parameters and provenance
 	•	Logs: Written to outputs/run.log
@@ -136,7 +173,7 @@ outputs/
 
 ⸻
 
-🧩 Module Overview
+Module Overview
 
 | Module | Description |
 |--------|-------------|
@@ -152,7 +189,7 @@ outputs/
 Example Jupyter notebooks are available in the `notebooks/` directory but not included in the installable package.
 ⸻
 
-📘 Citation
+Citation
 
 If you use this software in your research, please cite:
 
@@ -170,7 +207,7 @@ For more citation formats, see [`CITATION.cff`](CITATION.cff).
 
 ⸻
 
-🤝 Contributing
+Contributing
 
 We welcome contributions! Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on:
 - Reporting bugs and requesting features
@@ -180,7 +217,7 @@ We welcome contributions! Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for gu
 
 ⸻
 
-🔬 License and Acknowledgements
+License and Acknowledgements
 
 This code is distributed under the [BSD 3-Clause License](LICENSE). 
 
