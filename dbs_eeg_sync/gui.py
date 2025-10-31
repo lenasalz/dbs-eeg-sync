@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Tuple
+from typing import Any
 
 from dbs_eeg_sync.power_calculator import compute_samplewise_eeg_power
 from dbs_eeg_sync.plotting import apply_publication_style, EEG_COLOR, DBS_COLOR
@@ -10,7 +10,7 @@ from dbs_eeg_sync.plotting import apply_publication_style, EEG_COLOR, DBS_COLOR
 logger = logging.getLogger(__name__)
 
 
-def _to_1d_signal(x, *, prefer_axis="channels_first"):
+def _to_1d_signal(x: Any, *, prefer_axis: str = "channels_first") -> Any:
     """
     Convert an arbitrary EEG/DBS container into a 1-D numpy array (time series).
 
@@ -78,7 +78,7 @@ def _to_1d_signal(x, *, prefer_axis="channels_first"):
     raise ValueError("Unsupported input shape for signal conversion.")
 
 
-def _import_qt():
+def _import_qt() -> tuple[Any, Any, Any, bool]:
     """
     Try PyQt6 first, then PyQt5. Return (QtCore, QtWidgets, QtGui, is_qt6).
     Raises ImportError if neither is available.
@@ -91,7 +91,7 @@ def _import_qt():
         return QtCore, QtWidgets, QtGui, False
 
 
-def _require_qt_backend():
+def _require_qt_backend() -> None:
     """
     Ensure matplotlib is using a Qt backend. We don't force-switch here
     (to avoid surprising users), we just validate and error out cleanly.
@@ -105,58 +105,89 @@ def _require_qt_backend():
         )
 
 
-class _ManualSyncWidget(object):
+class _ManualSyncWidget:
     """
     Helper that builds the widget once we know Qt is available.
     Split into a plain class so we can keep all imports lazy.
     """
-    def __init__(self, QtCore, QtWidgets, QtGui, np, FigureCanvas, eeg_data, eeg_fs, dbs_data, dbs_fs, title, freq_low=None, freq_high=None, channel=None):
+    def __init__(
+        self,
+        QtCore: Any,
+        QtWidgets: Any,
+        QtGui: Any,
+        np: Any,
+        FigureCanvas: Any,
+        eeg_data: Any | None,
+        eeg_fs: float | None,
+        dbs_data: Any | None,
+        dbs_fs: float | None,
+        title: str | None,
+        freq_low: float | None = None,
+        freq_high: float | None = None,
+        channel: str | None = None,
+    ) -> None:
         self.QtCore = QtCore
         self.QtWidgets = QtWidgets
         self.QtGui = QtGui
         self.np = np
         self.FigureCanvas = FigureCanvas
+        self.eeg = None
+        self.t_eeg = None
+        self.eeg_channel = None
+        self.dbs = None
+        self.t_dbs = None
 
-        # EEG: prefer band-power of a single channel if Raw-like
-        self.eeg_fs = float(eeg_fs)
-        self.dbs_fs = float(dbs_fs)
-
-        eeg_signal = None
-        eeg_title_suffix = ""
-        try:
-            # Raw-like with channel names
-            if hasattr(eeg_data, "get_data") and hasattr(eeg_data, "ch_names"):
-                ch_names = list(getattr(eeg_data, "ch_names", []))
-                # Choose channel
-                preferred = ['T8','T7','Cz','Pz','Oz','Fz','O1','O2']
-                ch = channel if (channel and channel in ch_names) else next((c for c in preferred if c in ch_names), ch_names[0] if ch_names else None)
-                # Band defaults
-                f_lo = 120.0 if freq_low is None else float(freq_low)
-                f_hi = 130.0 if freq_high is None else float(freq_high)
-                # Compute per-sample band power for the chosen channel
-                power, t_power = compute_samplewise_eeg_power(
-                    eeg_data, freq_low=f_lo, freq_high=f_hi, channel=ch,
-                )
-                eeg_signal = np.asarray(power, dtype=float).ravel()
-                self.t_eeg = np.asarray(t_power, dtype=float).ravel()
-                eeg_title_suffix = f" (power, {ch}, {f_lo:.1f}-{f_hi:.1f} Hz)"
-                self.eeg_channel = ch
-            else:
-                # Fallback: reduce to 1D time series
+        # EEG setup (optional)
+        if eeg_data is not None:
+            if eeg_fs is None:
+                raise ValueError("eeg_fs must be provided when eeg_data is not None.")
+            self.eeg_fs = float(eeg_fs)
+            eeg_signal = None
+            eeg_title_suffix = ""
+            try:
+                # Raw-like with channel names
+                if hasattr(eeg_data, "get_data") and hasattr(eeg_data, "ch_names"):
+                    ch_names = list(getattr(eeg_data, "ch_names", []))
+                    # Choose channel
+                    preferred = ['T8','T7','Cz','Pz','Oz','Fz','O1','O2']
+                    ch = channel if (channel and channel in ch_names) else next((c for c in preferred if c in ch_names), ch_names[0] if ch_names else None)
+                    # Band defaults
+                    f_lo = 120.0 if freq_low is None else float(freq_low)
+                    f_hi = 130.0 if freq_high is None else float(freq_high)
+                    # Compute per-sample band power for the chosen channel
+                    power, t_power = compute_samplewise_eeg_power(
+                        eeg_data, freq_low=f_lo, freq_high=f_hi, channel=ch,
+                    )
+                    eeg_signal = np.asarray(power, dtype=float).ravel()
+                    self.t_eeg = np.asarray(t_power, dtype=float).ravel()
+                    eeg_title_suffix = f" (power, {ch}, {f_lo:.1f}-{f_hi:.1f} Hz)"
+                    self.eeg_channel = ch
+                else:
+                    # Fallback: reduce to 1D time series
+                    eeg_signal = _to_1d_signal(eeg_data)
+                    self.t_eeg = np.arange(np.asarray(eeg_signal).size, dtype=float) / self.eeg_fs
+                    self.eeg_channel = None
+            except Exception:
+                # Robust fallback
                 eeg_signal = _to_1d_signal(eeg_data)
                 self.t_eeg = np.arange(np.asarray(eeg_signal).size, dtype=float) / self.eeg_fs
                 self.eeg_channel = None
-        except Exception:
-            # Robust fallback
-            eeg_signal = _to_1d_signal(eeg_data)
-            self.t_eeg = np.arange(np.asarray(eeg_signal).size, dtype=float) / self.eeg_fs
-            self.eeg_channel = None
 
-        self.eeg = np.asarray(eeg_signal, dtype=float)
+            self.eeg = np.asarray(eeg_signal, dtype=float)
+            self.eeg_title_suffix = eeg_title_suffix
+        else:
+            self.eeg_fs = None
+            self.eeg_title_suffix = ""
 
-        # DBS signal always as simple 1D
-        self.dbs = _to_1d_signal(dbs_data)
-        self.t_dbs = np.arange(self.dbs.size, dtype=float) / self.dbs_fs
+        # DBS setup (optional)
+        if dbs_data is not None:
+            if dbs_fs is None:
+                raise ValueError("dbs_fs must be provided when dbs_data is not None.")
+            self.dbs_fs = float(dbs_fs)
+            self.dbs = _to_1d_signal(dbs_data)
+            self.t_dbs = np.arange(self.dbs.size, dtype=float) / self.dbs_fs
+        else:
+            self.dbs_fs = None
 
         self.result = None  # (eeg_idx, eeg_t, dbs_idx, dbs_t)
 
@@ -169,45 +200,86 @@ class _ManualSyncWidget(object):
         # Matplotlib canvases (QtAgg works for both PyQt5/6 via backend_qtagg)
         import matplotlib.pyplot as plt
         apply_publication_style()
-        self.fig_eeg, self.ax_eeg = plt.subplots(1, 1, figsize=(10, 3))
-        self.fig_dbs, self.ax_dbs = plt.subplots(1, 1, figsize=(10, 3))
+        self.fig_eeg = None
+        self.ax_eeg = None
+        self.canvas_eeg = None
+        self.line_eeg = None
+        self.label_eeg = None
+        self.slider_eeg = None
 
-        self.canvas_eeg = self.FigureCanvas(self.fig_eeg)
-        self.canvas_dbs = self.FigureCanvas(self.fig_dbs)
+        self.fig_dbs = None
+        self.ax_dbs = None
+        self.canvas_dbs = None
+        self.line_dbs = None
+        self.label_dbs = None
+        self.slider_dbs = None
 
-        # EEG plot
-        eeg_label = "EEG power" if "power" in eeg_title_suffix else "EEG"
-        self.ax_eeg.plot(self.t_eeg, self.eeg, linewidth=1.2, color=EEG_COLOR, label=eeg_label)
-        self.ax_eeg.set_title("EEG — choose one index" + eeg_title_suffix)
-        self.ax_eeg.set_xlabel("Time [s]")
-        self.ax_eeg.set_ylabel("Power" if "power" in eeg_title_suffix else "Amplitude")
-        self.line_eeg = self.ax_eeg.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
-        self.ax_eeg.legend(loc="upper right", frameon=False)
-        self.fig_eeg.tight_layout()
+        has_eeg = self.eeg is not None
+        has_dbs = self.dbs is not None
+        if not has_eeg and not has_dbs:
+            raise ValueError("At least one of EEG or DBS data must be provided.")
 
-        # DBS plot
-        self.ax_dbs.plot(self.t_dbs, self.dbs, linewidth=1.2, color=DBS_COLOR, label="DBS-LFP")
-        self.ax_dbs.set_title("DBS-LFP — choose one index")
-        self.ax_dbs.set_xlabel("Time [s]")
-        self.ax_dbs.set_ylabel("Amplitude")
-        self.line_dbs = self.ax_dbs.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
-        self.ax_dbs.legend(loc="upper right", frameon=False)
-        self.fig_dbs.tight_layout()
+        center_flag = (
+            self.QtCore.Qt.AlignmentFlag.AlignCenter
+            if hasattr(self.QtCore.Qt, "AlignmentFlag")
+            else self.QtCore.Qt.AlignCenter
+        )
 
-        # Sliders + labels
-        self.label_eeg = QtWidgets.QLabel("EEG: idx=0  t=0.000s")
-        self.slider_eeg = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
-        self.slider_eeg.setMinimum(0)
-        self.slider_eeg.setMaximum(max(0, self.eeg.size - 1))
-        self.slider_eeg.setValue(0)
-        self.slider_eeg.valueChanged.connect(self._update_eeg)
+        if has_eeg:
+            self.fig_eeg, self.ax_eeg = plt.subplots(1, 1, figsize=(10, 3))
+            self.canvas_eeg = self.FigureCanvas(self.fig_eeg)
+            eeg_label = "EEG power" if "power" in self.eeg_title_suffix else "EEG"
+            self.ax_eeg.plot(self.t_eeg, self.eeg, linewidth=1.2, color=EEG_COLOR, label=eeg_label)
+            self.ax_eeg.set_title("EEG — choose one index" + self.eeg_title_suffix)
+            self.ax_eeg.set_xlabel("Time [s]")
+            self.ax_eeg.set_ylabel("Power" if "power" in self.eeg_title_suffix else "Amplitude")
+            self.line_eeg = self.ax_eeg.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
+            self.ax_eeg.legend(loc="upper right", frameon=False)
+            self.fig_eeg.tight_layout()
 
-        self.label_dbs = QtWidgets.QLabel("DBS-LFP: idx=0  t=0.000s")
-        self.slider_dbs = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
-        self.slider_dbs.setMinimum(0)
-        self.slider_dbs.setMaximum(max(0, self.dbs.size - 1))
-        self.slider_dbs.setValue(0)
-        self.slider_dbs.valueChanged.connect(self._update_dbs)
+            self.label_eeg = QtWidgets.QLabel("EEG: idx=0  t=0.000s")
+            self.slider_eeg = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
+            self.slider_eeg.setMinimum(0)
+            self.slider_eeg.setMaximum(max(0, self.eeg.size - 1))
+            self.slider_eeg.setValue(0)
+            self.slider_eeg.valueChanged.connect(self._update_eeg)
+
+            main.addWidget(self.canvas_eeg)
+            main.addWidget(self.label_eeg)
+            main.addWidget(self.slider_eeg)
+        else:
+            no_eeg_label = QtWidgets.QLabel("EEG data not provided.")
+            no_eeg_label.setAlignment(center_flag)
+            main.addWidget(no_eeg_label)
+
+        if has_eeg and has_dbs:
+            main.addSpacing(8)
+
+        if has_dbs:
+            self.fig_dbs, self.ax_dbs = plt.subplots(1, 1, figsize=(10, 3))
+            self.canvas_dbs = self.FigureCanvas(self.fig_dbs)
+            self.ax_dbs.plot(self.t_dbs, self.dbs, linewidth=1.2, color=DBS_COLOR, label="DBS-LFP")
+            self.ax_dbs.set_title("DBS-LFP — choose one index")
+            self.ax_dbs.set_xlabel("Time [s]")
+            self.ax_dbs.set_ylabel("Amplitude")
+            self.line_dbs = self.ax_dbs.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
+            self.ax_dbs.legend(loc="upper right", frameon=False)
+            self.fig_dbs.tight_layout()
+
+            self.label_dbs = QtWidgets.QLabel("DBS-LFP: idx=0  t=0.000s")
+            self.slider_dbs = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
+            self.slider_dbs.setMinimum(0)
+            self.slider_dbs.setMaximum(max(0, self.dbs.size - 1))
+            self.slider_dbs.setValue(0)
+            self.slider_dbs.valueChanged.connect(self._update_dbs)
+
+            main.addWidget(self.canvas_dbs)
+            main.addWidget(self.label_dbs)
+            main.addWidget(self.slider_dbs)
+        else:
+            no_dbs_label = QtWidgets.QLabel("DBS data not provided.")
+            no_dbs_label.setAlignment(center_flag)
+            main.addWidget(no_dbs_label)
 
         # Buttons
         btn_row = QtWidgets.QHBoxLayout()
@@ -219,26 +291,18 @@ class _ManualSyncWidget(object):
         btn_row.addStretch(1)
         btn_row.addWidget(self.btn_ok)
 
-        # Assemble
-        main.addWidget(self.canvas_eeg)
-        main.addWidget(self.label_eeg)
-        main.addWidget(self.slider_eeg)
-
-        main.addSpacing(8)
-
-        main.addWidget(self.canvas_dbs)
-        main.addWidget(self.label_dbs)
-        main.addWidget(self.slider_dbs)
-
-        main.addSpacing(8)
         main.addLayout(btn_row)
 
         # Initial draw
-        self._update_eeg(0)
-        self._update_dbs(0)
+        if self.slider_eeg is not None:
+            self._update_eeg(0)
+        if self.slider_dbs is not None:
+            self._update_dbs(0)
 
     # ----- Slots
     def _update_eeg(self, idx: int):
+        if self.eeg is None or self.eeg_fs is None or self.label_eeg is None or self.line_eeg is None or self.canvas_eeg is None:
+            return
         idx = int(idx)
         idx = max(0, min(idx, self.eeg.size - 1))
         t = idx / self.eeg_fs
@@ -247,6 +311,8 @@ class _ManualSyncWidget(object):
         self.canvas_eeg.draw_idle()
 
     def _update_dbs(self, idx: int):
+        if self.dbs is None or self.dbs_fs is None or self.label_dbs is None or self.line_dbs is None or self.canvas_dbs is None:
+            return
         idx = int(idx)
         idx = max(0, min(idx, self.dbs.size - 1))
         t = idx / self.dbs_fs
@@ -260,37 +326,58 @@ class _ManualSyncWidget(object):
         self.widget.close()
 
     def _on_ok(self):
-        eeg_idx = int(self.slider_eeg.value())
-        dbs_idx = int(self.slider_dbs.value())
-        eeg_t = float(eeg_idx / self.eeg_fs)
-        dbs_t = float(dbs_idx / self.dbs_fs)
+        eeg_idx = None
+        eeg_t = None
+        if self.slider_eeg is not None and self.eeg_fs is not None:
+            eeg_idx = int(self.slider_eeg.value())
+            eeg_t = float(eeg_idx / self.eeg_fs)
+
+        dbs_idx = None
+        dbs_t = None
+        if self.slider_dbs is not None and self.dbs_fs is not None:
+            dbs_idx = int(self.slider_dbs.value())
+            dbs_t = float(dbs_idx / self.dbs_fs)
+
         self.result = (eeg_idx, eeg_t, dbs_idx, dbs_t)
-        logger.info(
-            "Manual picks — EEG: idx=%d, t=%.3fs | DBS-LFP: idx=%d, t=%.3fs",
-            eeg_idx, eeg_t, dbs_idx, dbs_t
-        )
+        parts = []
+        if eeg_idx is not None and eeg_t is not None:
+            parts.append(f"EEG: idx={eeg_idx}, t={eeg_t:.3f}s")
+        if dbs_idx is not None and dbs_t is not None:
+            parts.append(f"DBS-LFP: idx={dbs_idx}, t={dbs_t:.3f}s")
+        if parts:
+            logger.info("Manual picks — " + " | ".join(parts))
+        else:
+            logger.info("Manual picks confirmed with no signals selected.")
         self.widget.close()
 
 
 def manual_select_sync(
-    eeg_data,  # Raw or array-like
-    eeg_fs: float,
-    dbs_data,  # 1D array-like
-    dbs_fs: float,
+    eeg_data: Any | None,
+    eeg_fs: float | None,
+    dbs_data: Any | None,
+    dbs_fs: float | None,
     title: str,
     *,
     freq_low: float | None = None,
     freq_high: float | None = None,
     channel: str | None = None,
-) -> Tuple[int, float, int, float]:
+) -> tuple[int | None, float | None, int | None, float | None]:
     """
     Slider-based manual selector using Qt + matplotlib (QtAgg).
-    Returns (eeg_idx, eeg_t, dbs_idx, dbs_t).
+    Returns (eeg_idx, eeg_t, dbs_idx, dbs_t), where any unavailable signal yields None fields.
+    Provide the corresponding sampling rate for each signal that is supplied.
     """
     import importlib
 
     # Validate backend first (clear message if not Qt)
     _require_qt_backend()
+
+    if eeg_data is None and dbs_data is None:
+        raise ValueError("manual_select_sync requires at least one of eeg_data or dbs_data.")
+    if eeg_data is not None and eeg_fs is None:
+        raise ValueError("eeg_fs must be provided when eeg_data is supplied.")
+    if dbs_data is not None and dbs_fs is None:
+        raise ValueError("dbs_fs must be provided when dbs_data is supplied.")
 
     # Lazy imports
     np = importlib.import_module("numpy")

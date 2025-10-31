@@ -95,3 +95,15 @@ exclude = [
     ".ruff_cache/**",
     "tests/**",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "gui: tests that require GUI interaction (PyQt5/6 and display)",
+    "interactive: tests that require manual user interaction",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Skip GUI tests by default unless explicitly requested
+addopts = "-v --tb=short"
