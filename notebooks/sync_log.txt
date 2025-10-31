@@ -1,0 +1,5 @@
+Detected highest EEG peak at 100204 samples (50.10 sec)
+Detected DBS peak at 2148 samples (8.59 sec)
+EEG Sync Detection:
+  Peak at 100210 samples (50.10 s)
+  Drop at 10 samples (0.01 s)
