@@ -215,7 +215,8 @@ test_results.txt
 # JSON files - ignore output JSONs but keep config examples
 outputs/**/*.json
 notebooks/**/*.json
-# Don't ignore config examples (they're needed for documentation)
+# Don't ignore config examples and example metadata (they're needed for documentation)
+!outputs/example_metadata.json
 
 # Tool caches
 .ruff_cache/

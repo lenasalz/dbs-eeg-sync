@@ -111,8 +111,38 @@ source .venv/bin/activate  # Then run dbs-eeg-sync directly
 
 You can store parameters in a config file instead of typing them each time.
 
-Example config/default.json:
+### Using a Config File
 
+Create your own config file (JSON or YAML) with your parameters:
+
+```bash
+dbs-eeg-sync --config path/to/your_config.json
+```
+
+**Precedence:** defaults < config file < CLI flags
+
+This means you can override any config file parameter with CLI flags.
+
+### Configuration Parameters Reference
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `sub_id` | string | Yes | Subject identifier (e.g., "P01", "S01") |
+| `block` | string | Yes | Recording block/session label (e.g., "baseline", "B1") |
+| `eeg_file` | string | Yes | Path to EEG file (supports EEGLAB `.set`, EDF, etc.) |
+| `dbs_file` | string | Yes | Path to DBS JSON file from recording device |
+| `time_range` | string or array | No | Time window for artifact detection: `"start,end"` in seconds (e.g., `"10,60"` or `[10, 60]`). If omitted, uses full recording. |
+| `output_dir` | string | No | Directory for outputs (default: `"outputs"`) |
+| `plots` | boolean | No | Generate visualization plots (default: `false`) |
+| `headless` | boolean | No | Use non-interactive backend for plots, no GUI windows (default: `false`) |
+| `gui` | boolean | No | Enable manual GUI selection for sync points (default: `false`). Cannot be combined with `headless`. |
+| `verbose` | boolean | No | Enable detailed logging output (default: `false`) |
+
+### Example: JSON Config
+
+`config/default.json`:
+
+```json
 {
   "sub_id": "S01",
   "block": "B1",
@@ -123,20 +153,34 @@ Example config/default.json:
   "plots": true,
   "headless": true
 }
+```
 
-Run:
+Run with:
 
+```bash
 dbs-eeg-sync --config config/default.json
+```
 
-Or use YAML (requires pyyaml):
+### Example: YAML Config
 
+`config/default.yml` (requires `pyyaml`):
+
+```yaml
 sub_id: S01
 block: B1
 eeg_file: data/eeg_example.set
 dbs_file: data/dbs_example.json
 time_range: [10, 60]
+output_dir: outputs
 plots: true
 headless: true
+```
+
+Run with:
+
+```bash
+dbs-eeg-sync --config config/default.yml
+```
 
 
 ⸻
@@ -157,18 +201,71 @@ dbs-eeg-sync --manifest config/manifest.csv --plots --headless
 ⸻
 
 Output
-	•	Plots: Saved under outputs/plots/
-	•	Metadata: JSON file containing synchronization parameters and provenance
-	•	Logs: Written to outputs/run.log
 
-Example files:
+The tool generates three types of outputs:
 
+### 1. Metadata JSON
+
+A timestamped JSON file containing synchronization results and provenance information:
+
+- **Sync indices**: Sample indices in the **original (uncropped)** data where the artifact was detected
+  - `eeg_sync_idx`, `eeg_sync_s`: EEG artifact location (sample index and seconds)
+  - `dbs_sync_idx`, `dbs_sync_s`: DBS artifact location (sample index and seconds)
+- **Data properties**: Sample rates, file paths, channel names
+- **Detection parameters**: Artifact frequency band, time range used
+- **Provenance**: Package versions, git commit (if available), timestamps
+
+**Note:** The sync indices always refer to the original data, even if you specified a `time_range` for artifact detection. This ensures reproducibility.
+
+### 2. Plots (optional, with `--plots`)
+
+Visualization plots saved under `outputs/plots/`:
+- EEG-DBS overlay after synchronization
+- DBS artifact detection plot
+- EEG power spectrum plots (if applicable)
+
+### 3. Logs
+
+Detailed execution logs written to `outputs/run.log`
+
+### Example Output Structure
+
+```
 outputs/
 ├── 20251028_114817_metadata_S01_B1.json
 ├── plots/
 │   ├── 20251028_114817_syncDBS_S01_B1.png
 │   ├── 20251028_114817_eeg_dbs_overlay_S01_B1.png
 └── run.log
+```
+
+### Example Metadata JSON
+
+A complete example metadata file is available at [`outputs/example_metadata.json`](outputs/example_metadata.json).
+
+Key fields (simplified):
+
+```json
+{
+  "sub_id": "S01",
+  "block": "B1",
+  "eeg_sync_idx": 12500,
+  "eeg_sync_s": 10.0,
+  "dbs_sync_idx": 3125,
+  "dbs_sync_s": 10.0,
+  "eeg_fs": 1250.0,
+  "dbs_fs": 312.5,
+  "channel": "T8",
+  "artifact_kind": "drop",
+  "time_range": [10, 60],
+  "created_utc": "2025-11-03T10:30:00Z",
+  "versions": {
+    "dbs_eeg_sync": "0.1.0",
+    "numpy": "1.26.0",
+    "mne": "1.5.0"
+  }
+}
+```
 
 
 ⸻
