@@ -198,7 +198,7 @@ class _ManualSyncWidget:
         main = QtWidgets.QVBoxLayout(self.widget)
 
         # Matplotlib canvases (QtAgg works for both PyQt5/6 via backend_qtagg)
-        import matplotlib.pyplot as plt
+        from matplotlib.figure import Figure
         apply_publication_style()
         self.fig_eeg = None
         self.ax_eeg = None
@@ -226,22 +226,27 @@ class _ManualSyncWidget:
         )
 
         if has_eeg:
-            self.fig_eeg, self.ax_eeg = plt.subplots(1, 1, figsize=(10, 3))
+            self.fig_eeg = Figure(figsize=(10, 4), constrained_layout=True)
+            self.ax_eeg = self.fig_eeg.add_subplot(111)
             self.canvas_eeg = self.FigureCanvas(self.fig_eeg)
             eeg_label = "EEG power" if "power" in self.eeg_title_suffix else "EEG"
             self.ax_eeg.plot(self.t_eeg, self.eeg, linewidth=1.2, color=EEG_COLOR, label=eeg_label)
-            self.ax_eeg.set_title("EEG — choose one index" + self.eeg_title_suffix)
-            self.ax_eeg.set_xlabel("Time [s]")
-            self.ax_eeg.set_ylabel("Power" if "power" in self.eeg_title_suffix else "Amplitude")
+            self.ax_eeg.set_title("EEG — choose index" + self.eeg_title_suffix, pad=5, fontsize=12)
+            self.ax_eeg.set_xlabel("Time (s)", fontsize=12)
+            ylabel = "EEG Power (μV²/Hz)" if "power" in self.eeg_title_suffix else "Amplitude (μV)"
+            self.ax_eeg.set_ylabel(ylabel, fontsize=12)
+            self.ax_eeg.tick_params(axis='both', which='major', labelsize=8)
+            self.ax_eeg.yaxis.offsetText.set_fontsize(8)  # Scientific notation offset same as tick labels
             self.line_eeg = self.ax_eeg.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
-            self.ax_eeg.legend(loc="upper right", frameon=False)
-            self.fig_eeg.tight_layout()
+            self.ax_eeg.grid(True, alpha=0.3, linestyle='--')
 
             self.label_eeg = QtWidgets.QLabel("EEG: idx=0  t=0.000s")
+            self.label_eeg.setStyleSheet("font-size: 12pt; font-weight: bold; padding: 3px;")
             self.slider_eeg = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
             self.slider_eeg.setMinimum(0)
             self.slider_eeg.setMaximum(max(0, self.eeg.size - 1))
             self.slider_eeg.setValue(0)
+            self.slider_eeg.setStyleSheet("QSlider::groove:horizontal { height: 8px; } QSlider::handle:horizontal { width: 18px; height: 18px; margin: -5px 0; }")
             self.slider_eeg.valueChanged.connect(self._update_eeg)
 
             main.addWidget(self.canvas_eeg)
@@ -256,39 +261,52 @@ class _ManualSyncWidget:
             main.addSpacing(8)
 
         if has_dbs:
-            self.fig_dbs, self.ax_dbs = plt.subplots(1, 1, figsize=(10, 3))
+            self.fig_dbs = Figure(figsize=(10, 4), constrained_layout=True)
+            self.ax_dbs = self.fig_dbs.add_subplot(111)
             self.canvas_dbs = self.FigureCanvas(self.fig_dbs)
-            self.ax_dbs.plot(self.t_dbs, self.dbs, linewidth=1.2, color=DBS_COLOR, label="DBS-LFP")
-            self.ax_dbs.set_title("DBS-LFP — choose one index")
-            self.ax_dbs.set_xlabel("Time [s]")
-            self.ax_dbs.set_ylabel("Amplitude")
+            self.ax_dbs.plot(self.t_dbs, self.dbs, linewidth=1.2, color=DBS_COLOR, label="DBS LFP")
+            self.ax_dbs.set_title("DBS LFP — choose index", pad=5, fontsize=12)
+            self.ax_dbs.set_xlabel("Time (s)", fontsize=12)
+            self.ax_dbs.set_ylabel("LFP (μV)", fontsize=12)
+            self.ax_dbs.tick_params(axis='both', which='major', labelsize=8)
+            self.ax_dbs.yaxis.offsetText.set_fontsize(8)  # Scientific notation offset same as tick labels
             self.line_dbs = self.ax_dbs.axvline(0.0, linestyle="--", color="0.25", linewidth=1.0)
-            self.ax_dbs.legend(loc="upper right", frameon=False)
-            self.fig_dbs.tight_layout()
+            self.ax_dbs.grid(True, alpha=0.3, linestyle='--')
 
-            self.label_dbs = QtWidgets.QLabel("DBS-LFP: idx=0  t=0.000s")
+            self.label_dbs = QtWidgets.QLabel("DBS LFP: idx=0  t=0.000s")
+            self.label_dbs.setStyleSheet("font-size: 12pt; font-weight: bold; padding: 3px;")
             self.slider_dbs = QtWidgets.QSlider(self.QtCore.Qt.Orientation.Horizontal)
             self.slider_dbs.setMinimum(0)
             self.slider_dbs.setMaximum(max(0, self.dbs.size - 1))
             self.slider_dbs.setValue(0)
+            self.slider_dbs.setStyleSheet("QSlider::groove:horizontal { height: 8px; } QSlider::handle:horizontal { width: 18px; height: 18px; margin: -5px 0; }")
             self.slider_dbs.valueChanged.connect(self._update_dbs)
 
             main.addWidget(self.canvas_dbs)
             main.addWidget(self.label_dbs)
             main.addWidget(self.slider_dbs)
         else:
-            no_dbs_label = QtWidgets.QLabel("DBS data not provided.")
+            no_dbs_label = QtWidgets.QLabel("DBS LFP data not provided.")
             no_dbs_label.setAlignment(center_flag)
             main.addWidget(no_dbs_label)
 
         # Buttons
         btn_row = QtWidgets.QHBoxLayout()
         self.btn_cancel = QtWidgets.QPushButton("Cancel")
+        self.btn_save = QtWidgets.QPushButton("Save as PDF")
         self.btn_ok = QtWidgets.QPushButton("Confirm selection")
+        
+        # Style buttons
+        self.btn_cancel.setStyleSheet("QPushButton { font-size: 11pt; padding: 8px 20px; min-width: 100px; }")
+        self.btn_save.setStyleSheet("QPushButton { font-size: 11pt; padding: 8px 20px; min-width: 120px; background-color: #2196F3; color: white; font-weight: bold; } QPushButton:hover { background-color: #0b7dda; }")
+        self.btn_ok.setStyleSheet("QPushButton { font-size: 11pt; padding: 8px 20px; min-width: 150px; background-color: #4CAF50; color: white; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
+        
         self.btn_cancel.clicked.connect(self._on_cancel)
+        self.btn_save.clicked.connect(self._on_save_pdf)
         self.btn_ok.clicked.connect(self._on_ok)
         btn_row.addWidget(self.btn_cancel)
         btn_row.addStretch(1)
+        btn_row.addWidget(self.btn_save)
         btn_row.addWidget(self.btn_ok)
 
         main.addLayout(btn_row)
@@ -316,7 +334,7 @@ class _ManualSyncWidget:
         idx = int(idx)
         idx = max(0, min(idx, self.dbs.size - 1))
         t = idx / self.dbs_fs
-        self.label_dbs.setText(f"DBS-LFP: idx={idx}  t={t:.3f}s")
+        self.label_dbs.setText(f"DBS LFP: idx={idx}  t={t:.3f}s")
         self.line_dbs.set_xdata([t, t])
         self.canvas_dbs.draw_idle()
 
@@ -324,6 +342,99 @@ class _ManualSyncWidget:
         logger.info("Manual GUI canceled by user.")
         self.result = None
         self.widget.close()
+
+    def _on_save_pdf(self):
+        """Save the entire GUI window (with sliders and labels) to a PDF file."""
+        # Use Qt file dialog to get save location
+        file_dialog = self.QtWidgets.QFileDialog()
+        file_path, _ = file_dialog.getSaveFileName(
+            self.widget,
+            "Save GUI as PDF",
+            "manual_sync_selection.pdf",
+            "PDF Files (*.pdf)"
+        )
+        
+        if file_path:
+            # Ensure .pdf extension
+            if not file_path.endswith('.pdf'):
+                file_path += '.pdf'
+            
+            try:
+                import numpy as np
+                
+                # Capture the entire widget as an image
+                pixmap = self.widget.grab()
+                
+                # Convert QPixmap to QImage in RGBA8888 format
+                image = pixmap.toImage().convertToFormat(
+                    self.QtGui.QImage.Format.Format_RGBA8888
+                    if hasattr(self.QtGui.QImage, 'Format')
+                    else self.QtGui.QImage.Format_RGBA8888
+                )
+                
+                # Convert to numpy array
+                width = image.width()
+                height = image.height()
+                
+                # Get image data - handle both PyQt5 and PyQt6
+                ptr = image.constBits()
+                try:
+                    # PyQt5 style
+                    ptr.setsize(height * width * 4)
+                    img_array = np.frombuffer(ptr, dtype=np.uint8).reshape((height, width, 4))
+                except (AttributeError, TypeError):
+                    # PyQt6 style
+                    img_array = np.array(ptr).reshape((height, width, 4))
+                
+                # Convert RGBA to RGB
+                img_array = img_array[:, :, :3]
+                
+                # Use matplotlib to save as PDF
+                import matplotlib.pyplot as plt
+                from matplotlib.backends.backend_pdf import PdfPages
+                
+                # Create PDF with the screenshot at high resolution
+                with PdfPages(file_path) as pdf:
+                    # Use high DPI for better quality
+                    screen_dpi = 100  # Reference DPI for size calculation
+                    save_dpi = 300    # High resolution for PDF output
+                    
+                    figsize = (width / screen_dpi, height / screen_dpi)
+                    
+                    fig = plt.figure(figsize=figsize, dpi=screen_dpi)
+                    ax = fig.add_axes([0, 0, 1, 1])
+                    ax.imshow(img_array)
+                    ax.axis('off')
+                    
+                    # Save at high DPI for crisp output
+                    pdf.savefig(fig, bbox_inches='tight', pad_inches=0, dpi=save_dpi)
+                    plt.close(fig)
+                
+                logger.info(f"GUI screenshot saved to: {file_path}")
+                # Show success message
+                msg_box = self.QtWidgets.QMessageBox()
+                info_icon = (
+                    self.QtWidgets.QMessageBox.Icon.Information
+                    if hasattr(self.QtWidgets.QMessageBox, "Icon")
+                    else self.QtWidgets.QMessageBox.Information
+                )
+                msg_box.setIcon(info_icon)
+                msg_box.setText(f"GUI successfully saved to:\n{file_path}")
+                msg_box.setWindowTitle("Save Successful")
+                msg_box.exec() if hasattr(msg_box, 'exec') else msg_box.exec_()
+            except Exception as e:
+                logger.error(f"Failed to save PDF: {e}")
+                # Show error message
+                msg_box = self.QtWidgets.QMessageBox()
+                critical_icon = (
+                    self.QtWidgets.QMessageBox.Icon.Critical
+                    if hasattr(self.QtWidgets.QMessageBox, "Icon")
+                    else self.QtWidgets.QMessageBox.Critical
+                )
+                msg_box.setIcon(critical_icon)
+                msg_box.setText(f"Failed to save PDF:\n{str(e)}")
+                msg_box.setWindowTitle("Save Error")
+                msg_box.exec() if hasattr(msg_box, 'exec') else msg_box.exec_()
 
     def _on_ok(self):
         eeg_idx = None
@@ -343,7 +454,7 @@ class _ManualSyncWidget:
         if eeg_idx is not None and eeg_t is not None:
             parts.append(f"EEG: idx={eeg_idx}, t={eeg_t:.3f}s")
         if dbs_idx is not None and dbs_t is not None:
-            parts.append(f"DBS-LFP: idx={dbs_idx}, t={dbs_t:.3f}s")
+            parts.append(f"DBS LFP: idx={dbs_idx}, t={dbs_t:.3f}s")
         if parts:
             logger.info("Manual picks — " + " | ".join(parts))
         else:
@@ -411,7 +522,7 @@ def manual_select_sync(
         eeg_data, eeg_fs, dbs_data, dbs_fs, title,
         freq_low=freq_low, freq_high=freq_high, channel=channel,
     )
-    gui.widget.resize(1100, 800)
+    gui.widget.resize(1200, 900)
     gui.widget.show()
 
     # Exec event loop if we created the app, else run a modal loop
