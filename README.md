@@ -1,190 +1,323 @@
-# EEG-DBS Synchronization Pipeline
+EEG–DBS Synchronization Toolbox
 
-**EEG-DBS Synchronization Pipeline** is a Python-based tool designed to synchronize EEG (Electroencephalography) and DBS (Deep Brain Stimulation) BrainSense:tm: data. It enables efficient data loading, peak detection, alignment, and visualization of EEG and DBS signals for neuroscientific analysis.
+This repository provides open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems and was developed in the context of our Brain Stimulation manuscript.
 
-## TEMPORARY NOTES ## 
-- The drop in the EEG signal produced by the reduction in DBS stimulation amplitude is not the same in all EEG channels. Occipial and medial channels appear to have a clearer change (drop) in signal. 
-- Sometimes, there is a peak shortly after the drop. Is it noise, or some neurophysiological artefact related to the reduction in amplitude?
-- Potentially try to find the best drop in all channels first, and use this for syncrhonization?-
-- left and right electrodes seem sometimes opposed with drop / spike
+⸻
 
-## Recording Synchronization Procedure
-1. Start the EEG recording
-2. Start the DBS Streaming 
-3. Reduce the DBS amplitude by at least 0.5mA to indcue an artifact in the DBS **and** EEG data.
-4. Increase the amplitude again in the BrainSense:tm: App and wait until it is back to the initial stimulation.  
+Overview
 
----
+The repository is organized as a modular Python package, dbs_eeg_sync, with clear separation between computation, visualization, and user interaction layers.
 
-## Features
-
-- EEG & DBS Data Loading: Supports common EEG formats (.set, .edf, .fif) and JSON DBS data.
-- Peak Detection: Detects the maximum EEG and DBS peaks to align the signals.
-- Signal Synchronization: Crops and resamples EEG & DBS data for perfect alignment.
-- Visualization: Generates overlay plots of synchronized signals.
-- Data Saving: Allows saving synchronized data in `.fif` (EEG) and `.csv` (DBS).
-- Customizable Parameters: Adjustable frequency ranges, decimation factors, and peak detection settings.
-
----
-
-## Installation
-
-1. Clone the repository:
-Open a terminal and run:
-   ```bash
-   git clone https://github.com/lenasalz/dbs-eeg-sync.git
-   cd dbs-eeg-sync
-   ```
-
-2. Set up the environment using uv:
-This project uses **uv** to manage the Python environment and dependencies. Please follow the [official uv docs](https://docs.astral.sh/uv/) for installation. 
-    ```bash
-    uv sync 
-    source .venv/bin/activate 
-   ```
-   - uv sync will:
-    - create a .venv folder (if it doesn't exist)
-    - install dependencies from pyproject.toml and/or uv.lock
-*If a uv.lock file exists, uv will use it to ensure reproducible installs. Otherwise, it installs from pyproject.toml.*
-
-
----
-
-## Project Structure
-
-```
 .
-├── README.md
-├── config
-├── data
-│   ├── Report_Json_Session_Report_20241025T120701.json
-│   ├── eeg_example.set
-│   ├── synchronized_dbs.csv
-│   └── synchronized_eeg.fif
-├── docs
-├── examples
-├── notebooks
-│   └── synchronizer.ipynb
-├── plots
-│   ├── eeg_dbs_overlay.png
-│   ├── syncPeakDBS.png
-│   └── syncPeakEEG.png
-├── pyproject.toml
-├── source
-│   ├── __init__.py
-│   ├── __pycache__
-│   │   ├── __init__.cpython-312.pyc
-│   │   ├── data_loader.cpython-312.pyc
-│   │   ├── sync_peaks_finder.cpython-312.pyc
-│   │   └── synchronizer.cpython-312.pyc
-│   ├── data_loader.py
-│   ├── main.py
-│   ├── sync_peaks_finder.py
-│   ├── synchronizer.py
-│   └── utils
-│       └── __init__.py
-├── sync_log.txt
-├── tests
-│   ├── __init__.py
-│   ├── __pycache__
-│   │   ├── __init__.cpython-312.pyc
-│   │   └── test_data_loader.cpython-312.pyc
-│   ├── test_data_loader.py
-│   ├── test_sync_peak_finder.py
-│   └── test_synch
-```
+├── dbs_eeg_sync/
+│   ├── core.py                    # orchestration logic (sync_run)
+│   ├── synchronizer.py            # signal alignment and resampling
+│   ├── sync_artifact_finder.py    # artifact detection routines
+│   ├── data_loader.py             # EEG/DBS data import utilities
+│   ├── power_calculator.py        # band-power computation
+│   ├── plotting.py                # plotting utilities (headless support)
+│   ├── cli.py                     # command-line interface
+│   ├── gui.py                     # optional manual sync GUI
+│   └── __init__.py                # public API exports
+├── tests/                         # unit tests
+├── config/                        # JSON/YAML configuration files
+├── data/                          # example EEG/DBS input data
+├── notebooks/                     # Jupyter notebooks (examples)
+└── outputs/                       # generated plots and metadata
 
----
 
-## Usage Instructions
+⸻
 
-Run the Main Script:
+Installation
+
+### 1. Clone the repository
+
 ```bash
-python source/main.py
+git clone https://github.com/lenasalz/dbs-eeg-sync
+cd dbs-eeg-sync
 ```
 
-### Step-by-Step Workflow
+### 2. Install dependencies
 
-1. Enter EEG File Path: Path to EEG file (e.g., `.set` file).
-2. Enter DBS File Path: Path to DBS JSON report.
-3. Peak Detection: Automatic detection of prominent peaks from reduction of deep-brain stimulation. 
-4. Synchronization Prompt: Confirm synchronization.
-5. Save Data: Optionally save the synchronized EEG & DBS data.
+**Option A: Using `uv` (Recommended)**
 
-### Command-Line Arguments (Optional)
+[`uv`](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
+
 ```bash
-python source/main.py --eeg path/to/eeg_raw.set --dbs path/to/dbs.json
+# Install uv (one-time setup)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
+# or: pip install uv
+
+# Install the package
+uv sync
 ```
 
----
+**Option B: Using `pip` (Traditional)**
 
-## Example Workflow
-
-Sample Run:
 ```bash
-Enter EEG file path: data/eeg_raw.set
-Enter DBS file path: data/Report_Json_Session_Report.json
-Enter Frequency range of artifact and duration of signals
-Peak detected at 23116 samples (11.56s)
-DBS peak detected at 15023 samples (5.6s)
-Synchronize EEG and DBS? (yes/no): yes
-Save synchronized EEG & DBS data? (yes/no): yes
-EEG and DBS synchronized and saved successfully.
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install the package
+pip install -e .
 ```
 
----
+**Option C: Using `conda`**
 
-## Visualization Examples
+```bash
+conda create -n dbs-eeg-sync python=3.12
+conda activate dbs-eeg-sync
+pip install -e .
+```
 
-### Peak Detection
-- EEG Peak Detection: `plots/syncPSD.png`
-- DBS Peak Detection: `plots/dbs_peak.png`
 
-### Synchronized Signals Overlay
-- EEG & DBS Overlay: `plots/eeg_dbs_overlay.png`
+⸻
+Running the Synchronization
 
----
+### Quick Test with Example Data
 
-## File Outputs
+```bash
+# If using uv:
+uv run dbs-eeg-sync --test --plots --headless
 
-After successful synchronization, the following files are saved:
+# If using pip/conda (with activated environment):
+dbs-eeg-sync --test --plots --headless
+```
 
-- EEG Data: `synchronized_data/synchronized_eeg.fif`
-- DBS Data: `synchronized_data/synchronized_dbs.csv`
-- Logs: `sync_log.txt`
+This produces synchronized outputs, metadata JSONs, and headless plots under `outputs/`.
 
----
+### Using Your Own Data
 
-## Troubleshooting
+```bash
+dbs-eeg-sync \
+  --sub-id P01 \
+  --block baseline \
+  --eeg-file /path/to/eeg.set \
+  --dbs-file /path/to/dbs.json \
+  --time-range 0,120 \
+  --plots --headless --output-dir outputs
+```
 
-1. Mismatched Signal Lengths
-- Error: `ValueError: x and y must have same first dimension`
-- Fix: Ensure EEG & DBS data are correctly resampled and trimmed.
+**Note:** If you installed with `uv sync`, prefix commands with `uv run` or activate the environment first:
+```bash
+source .venv/bin/activate  # Then run dbs-eeg-sync directly
+```
 
-2. Missing Files
-- Error: `FileNotFoundError`
-- Fix: Check the file paths and filenames.
 
-3. Plot Not Showing
-- Fix: Ensure `matplotlib` is installed and `plt.show()` is called.
+⸻
 
----
+⚙️ Configuration via JSON/YAML
 
-## Contributing
+You can store parameters in a config file instead of typing them each time.
 
-1. Fork the repository.
-2. Create a new branch.
-3. Submit a Pull Request with detailed description.
+### Using a Config File
 
----
+Create your own config file (JSON or YAML) with your parameters:
 
-## License
+```bash
+dbs-eeg-sync --config path/to/your_config.json
+```
 
-This project is licensed under the MIT License.
+**Precedence:** defaults < config file < CLI flags
 
----
+This means you can override any config file parameter with CLI flags.
 
-## References
-- MNE-Python Documentation: [https://mne.tools/stable/](https://mne.tools/stable/)
-- Scipy Signal Processing: [https://docs.scipy.org/doc/scipy/reference/signal.html](https://docs.scipy.org/doc/scipy/reference/signal.html)
----
+### Configuration Parameters Reference
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `sub_id` | string | Yes | Subject identifier (e.g., "P01", "S01") |
+| `block` | string | Yes | Recording block/session label (e.g., "baseline", "B1") |
+| `eeg_file` | string | Yes | Path to EEG file (supports EEGLAB `.set`, EDF, etc.) |
+| `dbs_file` | string | Yes | Path to DBS JSON file from recording device |
+| `time_range` | string or array | No | Time window for artifact detection: `"start,end"` in seconds (e.g., `"10,60"` or `[10, 60]`). If omitted, uses full recording. |
+| `output_dir` | string | No | Directory for outputs (default: `"outputs"`) |
+| `plots` | boolean | No | Generate visualization plots (default: `false`) |
+| `headless` | boolean | No | Use non-interactive backend for plots, no GUI windows (default: `false`) |
+| `gui` | boolean | No | Enable manual GUI selection for sync points (default: `false`). Cannot be combined with `headless`. |
+| `verbose` | boolean | No | Enable detailed logging output (default: `false`) |
+
+### Example: JSON Config
+
+`config/default.json`:
+
+```json
+{
+  "sub_id": "S01",
+  "block": "B1",
+  "eeg_file": "data/eeg_example.set",
+  "dbs_file": "data/dbs_example.json",
+  "time_range": "10,60",
+  "output_dir": "outputs",
+  "plots": true,
+  "headless": true
+}
+```
+
+Run with:
+
+```bash
+dbs-eeg-sync --config config/default.json
+```
+
+### Example: YAML Config
+
+`config/default.yml` (requires `pyyaml`):
+
+```yaml
+sub_id: S01
+block: B1
+eeg_file: data/eeg_example.set
+dbs_file: data/dbs_example.json
+time_range: [10, 60]
+output_dir: outputs
+plots: true
+headless: true
+```
+
+Run with:
+
+```bash
+dbs-eeg-sync --config config/default.yml
+```
+
+
+⸻
+
+Batch Processing
+
+Use a CSV manifest to synchronize multiple subjects automatically:
+
+sub_id,block,eeg_file,dbs_file,start_sec,end_sec
+S01,B1,data/eeg_example.set,data/dbs_example.json,0,60
+S02,Baseline,/abs/path/eeg_S02.set,/abs/path/dbs_S02.json,10,120
+
+Run:
+
+dbs-eeg-sync --manifest config/manifest.csv --plots --headless
+
+
+⸻
+
+Output
+
+The tool generates three types of outputs:
+
+### 1. Metadata JSON
+
+A timestamped JSON file containing synchronization results and provenance information:
+
+- **Sync indices**: Sample indices in the **original (uncropped)** data where the artifact was detected
+  - `eeg_sync_idx`, `eeg_sync_s`: EEG artifact location (sample index and seconds)
+  - `dbs_sync_idx`, `dbs_sync_s`: DBS artifact location (sample index and seconds)
+- **Data properties**: Sample rates, file paths, channel names
+- **Detection parameters**: Artifact frequency band, time range used
+- **Provenance**: Package versions, git commit (if available), timestamps
+
+**Note:** The sync indices always refer to the original data, even if you specified a `time_range` for artifact detection. This ensures reproducibility.
+
+### 2. Plots (optional, with `--plots`)
+
+Visualization plots saved under `outputs/plots/`:
+- EEG-DBS overlay after synchronization
+- DBS artifact detection plot
+- EEG power spectrum plots (if applicable)
+
+### 3. Logs
+
+Detailed execution logs written to `outputs/run.log`
+
+### Example Output Structure
+
+```
+outputs/
+├── 20251028_114817_metadata_S01_B1.json
+├── plots/
+│   ├── 20251028_114817_syncDBS_S01_B1.png
+│   ├── 20251028_114817_eeg_dbs_overlay_S01_B1.png
+└── run.log
+```
+
+### Example Metadata JSON
+
+A complete example metadata file is available at [`outputs/example_metadata.json`](outputs/example_metadata.json).
+
+Key fields (simplified):
+
+```json
+{
+  "sub_id": "S01",
+  "block": "B1",
+  "eeg_sync_idx": 12500,
+  "eeg_sync_s": 10.0,
+  "dbs_sync_idx": 3125,
+  "dbs_sync_s": 10.0,
+  "eeg_fs": 1250.0,
+  "dbs_fs": 312.5,
+  "channel": "T8",
+  "artifact_kind": "drop",
+  "time_range": [10, 60],
+  "created_utc": "2025-11-03T10:30:00Z",
+  "versions": {
+    "dbs_eeg_sync": "0.1.0",
+    "numpy": "1.26.0",
+    "mne": "1.5.0"
+  }
+}
+```
+
+
+⸻
+
+Module Overview
+
+| Module | Description |
+|--------|-------------|
+| `core.py` | Orchestrates full synchronization (non-interactive) via `sync_run`. |
+| `synchronizer.py` | Core signal alignment and resampling logic (no I/O). |
+| `sync_artifact_finder.py` | Artifact detection in EEG and DBS data. |
+| `data_loader.py` | EEG and DBS data import helpers (EEGLAB .set, JSON, and more). |
+| `power_calculator.py` | Sample-wise band-power calculation for artifact detection. |
+| `plotting.py` | Headless plotting utilities for DBS artifacts, EEG power, and overlays. |
+| `cli.py` | Command-line interface for batch and config-driven execution. |
+| `gui.py` | Optional manual synchronization GUI (requires PyQt). |
+
+Example Jupyter notebooks are available in the `notebooks/` directory but not included in the installable package.
+⸻
+
+Citation
+
+If you use this software in your research, please cite:
+
+```bibtex
+@article{salzmann2025eegdbs,
+  title={Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research},
+  author={Salzmann, Lena and others},
+  journal={},
+  year={2025},
+  note={Manuscript in review}
+}
+```
+
+For more citation formats, see [`CITATION.cff`](CITATION.cff).
+
+⸻
+
+Contributing
+
+We welcome contributions! Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on:
+- Reporting bugs and requesting features
+- Setting up a development environment
+- Code style and testing requirements
+- Submitting pull requests
+
+⸻
+
+License and Acknowledgements
+
+This code is distributed under the [BSD 3-Clause License](LICENSE). 
+
+Developed at **ETH Zurich**, Department of Health Sciences and Technology, Rehabilitation Engineering Laboratory.
+
+**Contact:** [lena.salzmann@hest.ethz.ch](mailto:lena.salzmann@hest.ethz.ch)

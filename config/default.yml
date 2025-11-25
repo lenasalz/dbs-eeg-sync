@@ -1,0 +1,8 @@
+sub_id: S01
+block: B1
+eeg_file: data/eeg_example.set
+dbs_file: data/dbs_example.json
+time_range: "10,60"   # or [10, 60]
+output_dir: outputs
+plots: true
+headless: true  

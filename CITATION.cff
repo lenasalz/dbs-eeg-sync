@@ -1,0 +1,49 @@
+# Citation File Format (CFF) for dbs-eeg-sync
+# For more information see: https://citation-file-format.github.io/
+
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "EEG-DBS Synchronization Toolbox"
+abstract: "Open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems."
+type: software
+authors:
+  - family-names: "Salzmann"
+    given-names: "Lena"
+    email: "lena.salzmann@hest.ethz.ch"
+    affiliation: "ETH Zurich, Department of Health Sciences and Technology, Rehabilitation Engineering Laboratory"
+    orcid: "https://orcid.org/0009-0004-8533-6319" 
+repository-code: "https://github.com/lenasalz/dbs-eeg-sync"
+url: "https://github.com/lenasalz/dbs-eeg-sync"
+keywords:
+  - neuroscience
+  - EEG
+  - deep brain stimulation
+  - DBS
+  - synchronization
+  - neurophysiology
+  - signal processing
+  - local field potentials
+  - LFP
+license: BSD-3-Clause
+version: "0.1.0"
+date-released: "2025-01-30"  # TODO: Update to actual release date
+references:
+  - type: article
+    title: "Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research"
+    authors:
+      - family-names: "Salzmann"
+        given-names: "Lena"
+    year: 2025
+    journal: "Brain Stimulation"
+    # doi: "10.xxxx/xxxx"  # TODO: Add DOI once published
+    notes: "Manuscript in preparation"
+preferred-citation:
+  type: article
+  title: "Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research"
+  authors:
+    - family-names: "Salzmann"
+      given-names: "Lena"
+  year: 2025
+  journal: "Brain Stimulation"
+  # doi: "10.xxxx/xxxx"  # TODO: Add DOI once published
+
