@@ -283,7 +283,28 @@ Module Overview
 | `cli.py` | Command-line interface for batch and config-driven execution. |
 | `gui.py` | Optional manual synchronization GUI (requires PyQt). |
 
-Example Jupyter notebooks are available in the `notebooks/` directory but not included in the installable package.
+⸻
+
+Jupyter Notebooks
+
+The `notebooks/` directory contains interactive Jupyter notebooks demonstrating the synchronization methods, validation analyses, and publication figure generation. These notebooks are useful for:
+
+- **Understanding the method**: Step-by-step demonstrations of artifact detection and synchronization
+- **Validation**: Reproducing accuracy metrics and validation analyses
+- **Publication figures**: Generating all manuscript figures
+
+### Key Notebooks
+
+- **`publication_figures.ipynb`**: Generates all manuscript figures in publication quality
+- **`sync_artifact_detection.ipynb`**: Core method demonstration
+- **`validation_metrics.ipynb`**: Method validation and accuracy metrics
+- **`sync_drop_detection.ipynb`**: Drop-type artifact handling
+- **`test_sync_methods.ipynb`**: Method comparison and parameter analysis
+
+See [`notebooks/README.md`](notebooks/README.md) for detailed descriptions of all notebooks.
+
+**Note:** Notebooks are not included in the installable package but are available in the GitHub repository.
+
 ⸻
 
 Citation
