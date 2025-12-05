@@ -172,6 +172,7 @@ def _run_one(args: Dict[str, Any]) -> int:
     eeg_file = Path(args["eeg_file"])
     dbs_file = Path(args["dbs_file"])
     time_range = args.get("time_range")
+    block_index = args.get("block_index")
     output_dir = Path(args["output_dir"]) if args.get("output_dir") else Path("outputs")
     plots = bool(args.get("plots"))
     headless = bool(args.get("headless"))
@@ -182,9 +183,17 @@ def _run_one(args: Dict[str, Any]) -> int:
         logger.error("Cannot combine --gui with --headless. Remove one of the flags.")
         sys.exit(1)
 
-    # Backend selection: if GUI requested, force an interactive backend and skip headless.
+    # Backend selection: if GUI requested, force Qt backend before any matplotlib imports
     if use_gui:
-        os.environ.setdefault("MPLBACKEND", "TkAgg")
+        # PyQt6 requires QtAgg backend - must set BEFORE matplotlib is imported anywhere
+        os.environ["MPLBACKEND"] = "QtAgg"
+        # Also force matplotlib to use QtAgg if it's already imported
+        try:
+            import matplotlib
+            matplotlib.use("QtAgg", force=True)
+            logger.debug("Set matplotlib backend to QtAgg for GUI mode")
+        except ImportError:
+            logger.warning("Matplotlib not installed - GUI may not work")
     else:
         # Configure non-interactive backend if needed (must be before any pyplot import)
         _ensure_headless(headless)
@@ -196,7 +205,9 @@ def _run_one(args: Dict[str, Any]) -> int:
             eeg_file=eeg_file,
             dbs_file=dbs_file,
             time_range=time_range,
+            block_index=block_index,
             use_gui=use_gui,
+            headless=False if use_gui else headless,  # GUI mode requires interactive display
         )
         extra = {
             "cli": {
@@ -257,6 +268,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--block", help="Block/session label")
     p.add_argument("--eeg-file", type=Path, help="Path to EEG file (e.g., .set)")
     p.add_argument("--dbs-file", type=Path, help="Path to DBS JSON file")
+    p.add_argument("--block-index", type=int, help="DBS recording index (0-based) if JSON contains multiple recordings")
     p.add_argument("--time-range", type=str, help="start,end (seconds); e.g. 120,200")
     p.add_argument("--output-dir", type=Path, default=Path("outputs"), help="Root output directory")
     p.add_argument("--plots", action="store_true", help="Save plots (and show unless --headless)")
@@ -281,6 +293,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         "force": False,
         "verbose": False,
         "time_range": None,
+        "block_index": 0,  # Default to first recording
     }
 
     # Load config (optional)
@@ -289,18 +302,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         config = _load_config_file(ns.config)
 
     # Flags to dict
+    # For boolean flags with store_true, only override config if explicitly set
+    # (i.e., if True). If False, it means the flag wasn't provided, so use None
+    # to let config/defaults take precedence.
     flags: Dict[str, Any] = {
         "sub_id": ns.sub_id,
         "block": ns.block,
         "eeg_file": ns.eeg_file,
         "dbs_file": ns.dbs_file,
+        "block_index": ns.block_index,
         "time_range": _parse_time_range(ns.time_range),
         "output_dir": ns.output_dir,
-        "plots": ns.plots,
-        "headless": ns.headless,
-        "force": ns.force,
-        "verbose": ns.verbose,
-        "gui": ns.gui,
+        "plots": ns.plots if ns.plots else None,
+        "headless": ns.headless if ns.headless else None,
+        "force": ns.force if ns.force else None,
+        "verbose": ns.verbose if ns.verbose else None,
+        "gui": ns.gui if ns.gui else None,
         "test": ns.test,
     }
 

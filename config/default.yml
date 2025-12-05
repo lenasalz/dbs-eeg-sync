@@ -3,6 +3,8 @@ block: B1
 eeg_file: data/eeg_example.set
 dbs_file: data/dbs_example.json
 time_range: "10,60"   # or [10, 60]
+block_index: 0
 output_dir: outputs
 plots: true
 headless: true  
+gui: false  # Set to true for manual sync point selection  

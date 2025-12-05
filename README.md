@@ -129,8 +129,9 @@ This means you can override any config file parameter with CLI flags.
 |-----------|------|----------|-------------|
 | `sub_id` | string | Yes | Subject identifier (e.g., "P01", "S01") |
 | `block` | string | Yes | Recording block/session label (e.g., "baseline", "B1") |
-| `eeg_file` | string | Yes | Path to EEG file (supports EEGLAB `.set`, EDF, etc.) |
+| `eeg_file` | string | Yes | Path to EEG file (supports EEGLAB `.set`, EDF, XDF, etc.) |
 | `dbs_file` | string | Yes | Path to DBS JSON file from recording device |
+| `block_index` | integer | No | DBS recording index (0-based) if JSON contains multiple recordings (default: `0` - first recording) |
 | `time_range` | string or array | No | Time window for artifact detection: `"start,end"` in seconds (e.g., `"10,60"` or `[10, 60]`). If omitted, uses full recording. |
 | `output_dir` | string | No | Directory for outputs (default: `"outputs"`) |
 | `plots` | boolean | No | Generate visualization plots (default: `false`) |

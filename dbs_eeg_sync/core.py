@@ -28,8 +28,8 @@ from .gui import manual_select_sync  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-# Apply publication style globally
-apply_publication_style()
+# Note: apply_publication_style() is called within sync_run() to avoid
+# importing matplotlib at module import time (which would prevent backend switching)
 
 def ensure_output_dir(path: Path) -> Path:
     """Create *path* (and parents) if missing and return it.
@@ -263,9 +263,11 @@ def sync_run(
     logger.debug("Inputs validated: eeg_file=%s, dbs_file=%s", eeg_file, dbs_file)
 
     # Ensure Matplotlib backend is safe for the environment (Agg when headless)
-    ensure_matplotlib_headless(headless)
-    apply_publication_style()
-    
+    # Skip backend configuration if GUI is requested (backend should already be set to QtAgg)
+    if not use_gui:
+        ensure_matplotlib_headless(headless)
+        apply_publication_style()
+        
     # Load EEG
     eeg_data, eeg_fs = load_eeg_data(str(eeg_file))
     logger.info("Loaded EEG: %s (fs=%.3f Hz)", eeg_file.name, eeg_fs)
@@ -296,15 +298,38 @@ def sync_run(
     smoothed_power = None
     if use_gui:
         try:
+            import numpy as np
+            # Crop both EEG and DBS data to time_range if specified (for GUI display)
+            eeg_data_gui = eeg_data
+            dbs_signal_gui = dbs_signal
+            time_offset = 0.0  # Track offset for index correction
+            
+            if time_range is not None:
+                tmin, tmax = time_range
+                # Crop EEG
+                eeg_data_gui = eeg_data.copy().crop(tmin=tmin, tmax=tmax)
+                time_offset = tmin
+                
+                # Crop DBS (numpy array)
+                start_idx = int(tmin * dbs_fs)
+                end_idx = int(tmax * dbs_fs)
+                dbs_signal_gui = dbs_signal[start_idx:end_idx]
+                
+                logger.debug(f"GUI showing cropped data: {tmin:.3f}s → {tmax:.3f}s")
+                logger.debug(f"EEG cropped to {eeg_data_gui.n_times} samples, DBS cropped to {len(dbs_signal_gui)} samples")
+            
             eeg_idx_gui, eeg_t_gui, dbs_idx_gui, dbs_t_gui = manual_select_sync(
-                eeg_data, eeg_fs, dbs_signal, dbs_fs, f"{sub_id} {block} — manual sync",
+                eeg_data_gui, eeg_fs, dbs_signal_gui, dbs_fs, f"{sub_id} {block} — manual sync",
                 freq_low=120.0, freq_high=130.0, channel="T8"  # optional
             )
             channel = None
-            eeg_sync_idx, eeg_sync_s = int(eeg_idx_gui), float(eeg_t_gui)
-            dbs_sync_idx, dbs_sync_s = int(dbs_idx_gui), float(dbs_t_gui)
+            # Adjust both indices back to original (uncropped) data coordinates
+            eeg_sync_idx = int(eeg_idx_gui + time_offset * eeg_fs)
+            eeg_sync_s = float(eeg_t_gui + time_offset)
+            dbs_sync_idx = int(dbs_idx_gui + time_offset * dbs_fs)
+            dbs_sync_s = float(dbs_t_gui + time_offset)
             result = {"type": "manual", "magnitude": None}
-            logger.info("Using manual GUI picks for synchronization.")
+            logger.info("Using manual GUI picks for synchronization (adjusted for time_range offset).")
         except Exception as exc:
             logger.error("Manual selection failed: %s", exc)
             raise SyncError(f"Manual selection failed: {exc}")
