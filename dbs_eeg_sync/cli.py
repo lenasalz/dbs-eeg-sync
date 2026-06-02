@@ -33,7 +33,7 @@ def _load_config_file(path: Path) -> Dict[str, Any]:
         except Exception as e:
             raise RuntimeError(
                 "YAML config requested but PyYAML is not installed. "
-                "Install with: uv pip install pyyaml"
+                "Install with: pip install pyyaml"
             ) from e
         return yaml.safe_load(path.read_text())
     # default to JSON
