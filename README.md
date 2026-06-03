@@ -1,35 +1,11 @@
 EEG–DBS Synchronization Toolbox
 
-This repository provides open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems and was developed in the context of our Brain Stimulation manuscript.
+This repository provides open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems.
 
 > **Just want to run it, without the command line?**
 > See **[`INSTALL_CLINICIANS.md`](INSTALL_CLINICIANS.md)** for a click-by-click
 > guide: install Python once, then double-click a launcher to open a window
 > where you pick your files and press *Run*.
-
-⸻
-
-Overview
-
-The repository is organized as a modular Python package, dbs_eeg_sync, with clear separation between computation, visualization, and user interaction layers.
-
-.
-├── dbs_eeg_sync/
-│   ├── core.py                    # orchestration logic (sync_run)
-│   ├── synchronizer.py            # signal alignment and resampling
-│   ├── sync_artifact_finder.py    # artifact detection routines
-│   ├── data_loader.py             # EEG/DBS data import utilities
-│   ├── power_calculator.py        # band-power computation
-│   ├── plotting.py                # plotting utilities (headless support)
-│   ├── cli.py                     # command-line interface
-│   ├── gui.py                     # optional manual sync GUI
-│   └── __init__.py                # public API exports
-├── tests/                         # unit tests
-├── config/                        # JSON/YAML configuration files
-├── data/                          # example EEG/DBS input data
-├── notebooks/                     # Jupyter notebooks (examples)
-└── outputs/                       # generated plots and metadata
-
 
 ⸻
 
