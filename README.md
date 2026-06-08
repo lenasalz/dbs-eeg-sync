@@ -117,7 +117,7 @@ This means you can override any config file parameter with CLI flags.
 | `eeg_file` | string | Yes | Path to EEG file (supports EEGLAB `.set`, EDF, XDF, etc.) |
 | `dbs_file` | string | Yes | Path to DBS JSON file from recording device |
 | `block_index` | integer | No | DBS recording index (0-based) if JSON contains multiple recordings (default: `0` - first recording) |
-| `time_range` | string or array | No | Time window for artifact detection: `"start,end"` in seconds (e.g., `"10,60"` or `[10, 60]`). If omitted, uses full recording. |
+| `time_range` | string or array | No | Time window for artifact detection: `"start,end"` in seconds (e.g., `"5,40"` or `[5, 40]`). If omitted, uses full recording. |
 | `output_dir` | string | No | Directory for outputs (default: `"outputs"`) |
 | `plots` | boolean | No | Generate visualization plots (default: `false`) |
 | `headless` | boolean | No | Use non-interactive backend for plots, no GUI windows (default: `false`) |
@@ -134,7 +134,7 @@ This means you can override any config file parameter with CLI flags.
   "block": "B1",
   "eeg_file": "data/eeg_example.set",
   "dbs_file": "data/dbs_example.json",
-  "time_range": "10,60",
+  "time_range": "5,40",
   "output_dir": "outputs",
   "plots": true,
   "headless": true
@@ -156,7 +156,7 @@ sub_id: S01
 block: B1
 eeg_file: data/eeg_example.set
 dbs_file: data/dbs_example.json
-time_range: [10, 60]
+time_range: [5, 40]
 output_dir: outputs
 plots: true
 headless: true
@@ -176,7 +176,7 @@ Batch Processing
 Use a CSV manifest to synchronize multiple subjects automatically:
 
 sub_id,block,eeg_file,dbs_file,start_sec,end_sec
-S01,B1,data/eeg_example.set,data/dbs_example.json,0,60
+S01,B1,data/eeg_example.set,data/dbs_example.json,5,40
 S02,Baseline,/abs/path/eeg_S02.set,/abs/path/dbs_S02.json,10,120
 
 Run:
@@ -243,7 +243,7 @@ Key fields (simplified):
   "dbs_fs": 312.5,
   "channel": "T8",
   "artifact_kind": "drop",
-  "time_range": [10, 60],
+  "time_range": [5, 40],
   "created_utc": "2025-11-03T10:30:00Z",
   "versions": {
     "dbs_eeg_sync": "0.1.0",

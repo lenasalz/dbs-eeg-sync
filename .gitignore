@@ -188,6 +188,13 @@ data/
 *.bdf
 *.gdf
 
+# Exception: ship the small *synthetic* example data so the documented example
+# runs on a fresh clone. These files are procedurally generated (no patient
+# data) by scripts/generate_synthetic_example_data.py.
+!data/
+!data/eeg_example.set
+!data/dbs_example.json
+
 # Generated outputs
 outputs/
 outputs_test/
