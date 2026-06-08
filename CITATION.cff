@@ -25,7 +25,7 @@ keywords:
   - local field potentials
   - LFP
 license: BSD-3-Clause
-version: "1.1.0"
+version: "1.1.2"
 date-released: "2026-06-08"
 references:
   - type: article
