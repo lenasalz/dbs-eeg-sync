@@ -17,8 +17,8 @@ def compute_samplewise_eeg_power(
     freq_low: int,
     freq_high: int,
     channel: str = 'POz',
-    smoothing_sec: float | None = 0.5,
-    smooth_window: int = 301,
+    smoothing_sec: float | None = 0.15,
+    smooth_window: int | None = None,
     plot: bool = False,
     ) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -50,13 +50,18 @@ def compute_samplewise_eeg_power(
     analytic_signal = hilbert(data)
     power_trace = np.abs(analytic_signal) ** 2
     
+    # Smoothing window: explicit sample count if given, else a fixed *duration*
+    # (smoothing_sec) so the time-constant is constant across sampling rates.
+    wl = smooth_window if smooth_window is not None else (
+        int(round(smoothing_sec * fs)) if smoothing_sec else 0)
+
     # Apply Savitzky-Golay smoothing
-    if smooth_window and smooth_window > 1:
+    if wl and wl > 1:
         # Ensure odd and less than signal length
-        if smooth_window % 2 == 0:
-            smooth_window += 1
-        smooth_window = min(smooth_window, len(power_trace) - 1 if len(power_trace) % 2 == 0 else len(power_trace))
-        power_trace_smoothed = savgol_filter(power_trace, window_length=smooth_window, polyorder=3)
+        if wl % 2 == 0:
+            wl += 1
+        wl = min(wl, len(power_trace) - 1 if len(power_trace) % 2 == 0 else len(power_trace))
+        power_trace_smoothed = savgol_filter(power_trace, window_length=wl, polyorder=3)
 
     # Time axis
     time_axis = np.arange(len(power_trace)) / fs
@@ -71,7 +76,7 @@ def compute_samplewise_eeg_power(
         plt.tight_layout()
         plt.show()
 
-    if smooth_window and smooth_window > 1:
+    if wl and wl > 1:
         return power_trace_smoothed, time_axis
     else:
         return power_trace, time_axis

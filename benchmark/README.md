@@ -65,12 +65,12 @@ Notes on the modeling:
 
 - **LFP localization is effectively exact** (the detector picks the induced
   transient's peak) — this carries the precision.
-- **EEG localization is a *correct-event* criterion**, not sub-sample precision.
-  The detector marks the band-power onset/midpoint after a fixed 301-sample
-  Savitzky–Golay smoothing; at 256 Hz that window spans ~1.2 s, so the marked
-  EEG time can sit several hundred ms from the labeled event start even when the
-  right event is found. The evaluation therefore uses a 1 s EEG tolerance and a
-  4 ms LFP tolerance, and always prints the raw error.
+- **EEG localization** marks the band-power onset/midpoint and is generally
+  within ~50–250 ms of the labeled event on clean recordings (at both 2000 Hz
+  and 256 Hz, now that the Savitzky–Golay smoothing uses a fixed *duration*
+  window rather than a fixed sample count). The evaluation uses a 1 s EEG
+  tolerance (a correct-event criterion) and a 4 ms LFP tolerance, and always
+  prints the raw error.
 - The **noisy** recordings deliberately include movement-like interference;
   occasional misses there are expected and mirror the manual-correction cases
   reported in the paper — not a defect of the benchmark.

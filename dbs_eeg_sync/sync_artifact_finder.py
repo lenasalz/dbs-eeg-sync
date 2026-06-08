@@ -84,7 +84,8 @@ def detect_eeg_sync_artifact(
     time_range: tuple[float, float] | None = None,
     eeg_fs: int | None = None,
     channel_list: list[str] | None = None,
-    smooth_window: int = 301,
+    smooth_window: int | None = None,
+    smooth_window_s: float = 0.15,
     window_size_sec: int = 2,
     plot: bool = False,
     save_dir: str | None = "outputs/plots",
@@ -107,7 +108,11 @@ def detect_eeg_sync_artifact(
         time_range (Tuple[float, float], optional): (start, stop) time range in seconds to crop for faster processing.
         eeg_fs (Optional[int]): Sampling frequency of the EEG data. If None, uses `eeg_raw.info['sfreq']`.
         channel_list (Optional[List[str]]): Channels to search. If None, uses a default list.
-        smooth_window (int): Window size for Savitzky–Golay smoothing of the band-power (samples).
+        smooth_window (Optional[int]): Explicit Savitzky–Golay window in *samples*. If
+            None (default), the window is derived from `smooth_window_s` and the EEG
+            sampling rate, so the smoothing duration is constant across sampling rates.
+        smooth_window_s (float): Savitzky–Golay smoothing window in *seconds* (default
+            0.15 s). Used when `smooth_window` is None.
         window_size_sec (int): Window (seconds) for the pre/post mean comparison.
         plot (bool): If True, build a Plotly figure and (optionally) save it.
         save_dir (Optional[str]): Directory to save the plot (PNG) and CSV. If None, do not save.
@@ -219,8 +224,12 @@ def detect_eeg_sync_artifact(
         # largest odd window not exceeding n
         max_wl = n if (n % 2 == 1) else (n - 1)
 
+        # Target window: explicit sample count if given, else a fixed *duration*
+        # (so the smoothing time-constant is the same regardless of sampling rate).
+        target_wl = smooth_window if smooth_window is not None else int(round(smooth_window_s * eeg_fs))
+
         if max_wl >= min_wl:
-            wl = min(smooth_window, max_wl)
+            wl = min(target_wl, max_wl)
             if wl % 2 == 0:
                 wl -= 1
             wl = max(wl, min_wl)
