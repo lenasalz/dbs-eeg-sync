@@ -199,7 +199,13 @@ data/
 outputs/
 outputs_test/
 notebooks/outputs/
+examples/output/
 test_results.txt
+
+# Generated synthetic benchmark data (reproducible via
+# scripts/generate_benchmark_dataset.py); keep the README tracked.
+benchmark/recordings/
+benchmark/manifest.csv
 *.log
 
 # Media files (plots and figures)

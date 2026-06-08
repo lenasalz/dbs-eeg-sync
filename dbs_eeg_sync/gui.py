@@ -480,15 +480,17 @@ def manual_select_sync(
     """
     import importlib
 
-    # Validate backend first (clear message if not Qt)
-    _require_qt_backend()
-
+    # Validate inputs first, before touching the GUI backend, so argument errors
+    # surface as ValueError regardless of the active matplotlib backend.
     if eeg_data is None and dbs_data is None:
         raise ValueError("manual_select_sync requires at least one of eeg_data or dbs_data.")
     if eeg_data is not None and eeg_fs is None:
         raise ValueError("eeg_fs must be provided when eeg_data is supplied.")
     if dbs_data is not None and dbs_fs is None:
         raise ValueError("dbs_fs must be provided when dbs_data is supplied.")
+
+    # Then validate the backend (clear message if not Qt)
+    _require_qt_backend()
 
     # Lazy imports
     np = importlib.import_module("numpy")
