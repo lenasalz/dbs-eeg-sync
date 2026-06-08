@@ -4,7 +4,7 @@
   "eeg_file": "data/eeg_example.set",
   "dbs_file": "data/dbs_example.json",
   "block_index": 0,
-  "time_range": "10,60",
+  "time_range": "5,40",
   "output_dir": "outputs",
   "plots": true,
   "headless": true,
