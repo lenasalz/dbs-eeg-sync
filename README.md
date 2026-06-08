@@ -1,30 +1,11 @@
 EEG–DBS Synchronization Toolbox
 
-This repository provides open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems and was developed in the context of our Brain Stimulation manuscript.
+This repository provides open, reproducible code for synchronizing EEG recordings with deep brain stimulation (DBS) signals based on stimulation artifacts. The package enables precise temporal alignment between cortical EEG and subcortical local field potentials (LFPs) from DBS systems.
 
-⸻
-
-Overview
-
-The repository is organized as a modular Python package, dbs_eeg_sync, with clear separation between computation, visualization, and user interaction layers.
-
-.
-├── dbs_eeg_sync/
-│   ├── core.py                    # orchestration logic (sync_run)
-│   ├── synchronizer.py            # signal alignment and resampling
-│   ├── sync_artifact_finder.py    # artifact detection routines
-│   ├── data_loader.py             # EEG/DBS data import utilities
-│   ├── power_calculator.py        # band-power computation
-│   ├── plotting.py                # plotting utilities (headless support)
-│   ├── cli.py                     # command-line interface
-│   ├── gui.py                     # optional manual sync GUI
-│   └── __init__.py                # public API exports
-├── tests/                         # unit tests
-├── config/                        # JSON/YAML configuration files
-├── data/                          # example EEG/DBS input data
-├── notebooks/                     # Jupyter notebooks (examples)
-└── outputs/                       # generated plots and metadata
-
+> **Just want to run it, without the command line?**
+> See **[`INSTALL_CLINICIANS.md`](INSTALL_CLINICIANS.md)** for a click-by-click
+> guide: install Python once, then double-click a launcher to open a window
+> where you pick your files and press *Run*.
 
 ⸻
 
@@ -39,31 +20,25 @@ cd dbs-eeg-sync
 
 ### 2. Install dependencies
 
-**Option A: Using `uv` (Recommended)**
+Requires **Python 3.12 or newer**.
 
-[`uv`](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
-
-```bash
-# Install uv (one-time setup)
-curl -LsSf https://astral.sh/uv/install.sh | sh  # macOS/Linux
-# or: pip install uv
-
-# Install the package
-uv sync
-```
-
-**Option B: Using `pip` (Traditional)**
+**Option A: Using `pip` + a virtual environment (recommended)**
 
 ```bash
-# Create virtual environment
+# Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate        # On Windows: .venv\Scripts\activate
 
 # Install the package
 pip install -e .
+
+# Optional extras:
+pip install -e ".[gui]"          # graphical manual-sync interface (PyQt6)
+pip install -e ".[notebooks]"    # Jupyter notebooks
+pip install -e ".[dev]"          # tests, linting, type checking
 ```
 
-**Option C: Using `conda`**
+**Option B: Using `conda`**
 
 ```bash
 conda create -n dbs-eeg-sync python=3.12
@@ -71,17 +46,32 @@ conda activate dbs-eeg-sync
 pip install -e .
 ```
 
+After installation the `dbs-eeg-sync` command (CLI) and `dbs-eeg-sync-gui`
+command (graphical launcher) are available inside the environment.
+
 
 ⸻
 Running the Synchronization
 
-### Quick Test with Example Data
+### Graphical interface (no command line)
+
+If you installed the GUI extras (`pip install -e ".[gui]"`), open the
+point-and-click window with either:
 
 ```bash
-# If using uv:
-uv run dbs-eeg-sync --test --plots --headless
+dbs-eeg-sync-gui
+# or
+python -m dbs_eeg_sync
+```
 
-# If using pip/conda (with activated environment):
+Non-technical users can instead double-click a launcher in the `launchers/`
+folder — see **[`INSTALL_CLINICIANS.md`](INSTALL_CLINICIANS.md)**.
+
+### Quick Test with Example Data
+
+With the environment activated:
+
+```bash
 dbs-eeg-sync --test --plots --headless
 ```
 
@@ -97,11 +87,6 @@ dbs-eeg-sync \
   --dbs-file /path/to/dbs.json \
   --time-range 0,120 \
   --plots --headless --output-dir outputs
-```
-
-**Note:** If you installed with `uv sync`, prefix commands with `uv run` or activate the environment first:
-```bash
-source .venv/bin/activate  # Then run dbs-eeg-sync directly
 ```
 
 

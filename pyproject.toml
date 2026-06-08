@@ -66,6 +66,9 @@ dev = [
 dbs-eeg-sync = "dbs_eeg_sync.cli:main"
 dbs_eeg_sync = "dbs_eeg_sync.cli:main"
 
+[project.gui-scripts]
+dbs-eeg-sync-gui = "dbs_eeg_sync.gui_launcher:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

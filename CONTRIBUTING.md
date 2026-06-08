@@ -21,21 +21,27 @@ cd dbs-eeg-sync
 
 ### 2. Create Development Environment
 
-We recommend using `uv` for fast, reproducible environments:
+Create a virtual environment and install the package in editable mode with the
+extras you need (Python 3.12+):
 
 ```bash
-# Install dependencies
-uv sync
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate        # On Windows: .venv\Scripts\activate
 
 # Install development dependencies
-uv pip install -e ".[dev]"
+pip install -e ".[dev]"
 
 # Optional: Install GUI dependencies
-uv pip install -e ".[gui]"
+pip install -e ".[gui]"
 
 # Optional: Install notebook dependencies
-uv pip install -e ".[notebooks]"
+pip install -e ".[notebooks]"
 ```
+
+> Prefer a faster installer? You can substitute [`uv`](https://github.com/astral-sh/uv)
+> (`uv pip install -e ".[dev]"`) if you already use it — it is optional and not
+> required.
 
 ### 3. Create a Feature Branch
 
