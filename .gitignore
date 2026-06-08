@@ -199,6 +199,7 @@ data/
 outputs/
 outputs_test/
 notebooks/outputs/
+examples/output/
 test_results.txt
 *.log
 

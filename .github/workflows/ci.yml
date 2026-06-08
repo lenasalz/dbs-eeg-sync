@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, clinician-friendly]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package (with dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # On Linux the optional GUI deps (PyQt6) are intentionally not installed
+      # (see the `gui` extra), so the interactive GUI tests skip automatically.
+      - name: Run test suite
+        run: pytest

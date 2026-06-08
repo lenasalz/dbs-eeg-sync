@@ -108,5 +108,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-# Skip GUI tests by default unless explicitly requested
-addopts = "-v --tb=short"
+# Interactive GUI tests open real Qt windows and need a user; deselect them by
+# default (run them explicitly with: pytest -m interactive). Everything else,
+# including the non-interactive GUI input-validation test, runs normally.
+addopts = "-v --tb=short -m 'not interactive'"
