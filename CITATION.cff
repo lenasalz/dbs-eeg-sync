@@ -25,25 +25,25 @@ keywords:
   - local field potentials
   - LFP
 license: BSD-3-Clause
-version: "0.1.0"
-date-released: "2025-01-30"  # TODO: Update to actual release date
+version: "1.1.0"
+date-released: "2026-06-08"
 references:
   - type: article
     title: "Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research"
     authors:
       - family-names: "Salzmann"
         given-names: "Lena"
-    year: 2025
-    journal: "Brain Stimulation"
+    year: 2026
+    journal: "IEEE Transactions on Neural Systems and Rehabilitation Engineering"
     # doi: "10.xxxx/xxxx"  # TODO: Add DOI once published
-    notes: "Manuscript in preparation"
+    notes: "Manuscript submitted"
 preferred-citation:
   type: article
   title: "Synchronizing EEG with Intracranial DBS Electrode Recordings for Neurophysiological Research"
   authors:
     - family-names: "Salzmann"
       given-names: "Lena"
-  year: 2025
-  journal: "Brain Stimulation"
+  year: 2026
+  journal: "IEEE Transactions on Neural Systems and Rehabilitation Engineering"
   # doi: "10.xxxx/xxxx"  # TODO: Add DOI once published
 
